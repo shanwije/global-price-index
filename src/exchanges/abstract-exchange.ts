@@ -70,7 +70,7 @@ export abstract class AbstractExchange implements Exchange {
       this.logger.warn(
         `${this.constructor.name} - Disconnected, reconnecting... Code: ${code}, Reason: ${reason}`,
       );
-      setTimeout(() => this.connect(), 1000);
+      setTimeout(() => this.connect(), 2000);
     });
 
     this.ws.on('error', (error) => {
