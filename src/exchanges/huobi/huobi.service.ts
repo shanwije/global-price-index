@@ -4,10 +4,11 @@ import { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 import * as WebSocket from 'ws';
+import * as zlib from 'zlib';
 
 @Injectable()
-export class KrakenService extends AbstractExchange {
-  readonly logger = new Logger(KrakenService.name);
+export class HuobiService extends AbstractExchange {
+  readonly logger = new Logger(HuobiService.name);
   private ws: WebSocket;
   private wsUrl: string;
   wsSubscriptionMessage: any;
@@ -17,42 +18,46 @@ export class KrakenService extends AbstractExchange {
     protected readonly configService: ConfigService,
   ) {
     super(cacheManager, configService);
-    this.wsUrl = this.configService.get<string>('KRAKEN_WS_URL');
+    this.wsUrl = this.configService.get<string>('HUOBI_WS_URL');
     this.wsSubscriptionMessage = {
-      event: 'subscribe',
-      pair: [this.configService.get<string>('KRAKEN_WS_CURRENCY_PAIR')],
-      subscription: {
-        name: 'book',
-        depth: this.configService.get<number>('KRAKEN_WS_DEPTH'),
-      },
+      sub: `market.${this.configService.get<string>('HUOBI_WS_CURRENCY_PAIR')}.depth.${this.configService.get<string>('HUOBI_WS_DEPTH')}`,
+      id: 'id1',
     };
   }
 
   connect(): void {
-    this.logger.log(`Connecting to Kraken WebSocket at ${this.wsUrl}`);
+    this.logger.log(`Connecting to Huobi WebSocket at ${this.wsUrl}`);
     this.setupWebSocket(this.wsUrl);
   }
 
   private setupWebSocket(url: string): void {
     this.ws = new WebSocket(url);
     this.ws.on('open', () => {
-      this.logger.log('Connected to Kraken WebSocket');
+      this.logger.log('Connected to Huobi WebSocket');
       this.ws.send(JSON.stringify(this.wsSubscriptionMessage));
     });
 
     this.ws.on('message', (data) => {
-      this.logger.log('Received message from Kraken WebSocket');
+      this.logger.log('Received message from Huobi WebSocket');
       try {
-        const parsedData = JSON.parse(data.toString());
-        // this.logger.debug(`Message data: ${JSON.stringify(parsedData)}`);
-        this.handleMessage(parsedData);
+        // Handle gzip-compressed data
+        zlib.gunzip(data, (err, decompressed) => {
+          if (err) {
+            this.logger.error(`Decompression error: ${err}`);
+            return;
+          }
+
+          const parsedData = JSON.parse(decompressed.toString());
+          //   this.logger.debug(`Message data: ${JSON.stringify(parsedData)}`);
+          this.handleMessage(parsedData);
+        });
       } catch (error) {
         this.logger.error(`Error parsing message: ${error}`);
       }
     });
 
     this.ws.on('close', () => {
-      this.logger.warn('Disconnected from Kraken WebSocket, reconnecting...');
+      this.logger.warn('Disconnected from Huobi WebSocket, reconnecting...');
       setTimeout(() => this.connect(), 1000);
     });
 
@@ -62,15 +67,14 @@ export class KrakenService extends AbstractExchange {
   }
 
   handleMessage(data: any): void {
-    if (data.event === 'subscriptionStatus' && data.status === 'subscribed') {
-      this.logger.log('Successfully subscribed to Kraken WebSocket');
+    if (data.ping) {
+      this.ws.send(JSON.stringify({ pong: data.ping }));
       return;
     }
 
-    if (Array.isArray(data)) {
-      const [, orderBook] = data;
-      this.data = orderBook;
-      this.calculateAndCacheMidPrice(orderBook);
+    if (data.ch && data.tick) {
+      this.data = data.tick;
+      this.calculateAndCacheMidPrice(data.tick);
     }
   }
 
@@ -82,7 +86,7 @@ export class KrakenService extends AbstractExchange {
     const bestAsk = parseFloat(orderBook.asks[0][0]);
     const midPrice = (bestBid + bestAsk) / 2;
 
-    await this.cacheManager.set('krakenMidPrice', midPrice);
+    await this.cacheManager.set('huobiMidPrice', midPrice);
     this.logger.log(`Cached mid price: ${midPrice}`);
     return midPrice;
   }

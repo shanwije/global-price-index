@@ -15,6 +15,11 @@ export class AppController {
     return this.appService.getKrakenOrderBook();
   }
 
+  @Get('huobi-orderbook')
+  getHuobiOrderBook(): any {
+    return this.appService.getHuobiOrderBook();
+  }
+
   @Get('binance-midprice')
   async getBinanceMidPrice(): Promise<number> {
     return this.appService.getBinanceMidPrice();
@@ -23,5 +28,10 @@ export class AppController {
   @Get('kraken-midprice')
   async getKrakenMidPrice(): Promise<number> {
     return this.appService.getKrakenMidPrice();
+  }
+
+  @Get('huobi-midprice')
+  async getHuobiMidPrice(): Promise<number> {
+    return this.appService.getHuobiMidPrice();
   }
 }

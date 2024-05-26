@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BinanceService } from './binance/binance.service';
 import { KrakenService } from './kraken/kraken.service';
+import { HuobiService } from './huobi/huobi.service';
 import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
@@ -16,7 +17,7 @@ import { CacheModule } from '@nestjs/cache-manager';
       inject: [ConfigService],
     }),
   ],
-  providers: [BinanceService, KrakenService],
-  exports: [BinanceService, KrakenService],
+  providers: [BinanceService, KrakenService, HuobiService],
+  exports: [BinanceService, KrakenService, HuobiService],
 })
 export class ExchangesModule {}
