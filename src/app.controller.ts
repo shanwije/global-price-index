@@ -1,27 +1,25 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Logger } from '@nestjs/common';
 import { AppService } from './app.service';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { AverageMidPriceDto } from './dto/global-price-index.dto';
 
+@ApiTags('Global Price Index')
 @Controller()
 export class AppController {
+  private readonly logger = new Logger(AppController.name);
+
   constructor(private readonly appService: AppService) {}
 
-  @Get('binance-orderbook')
-  getBinanceOrderBook(): any {
-    return this.appService.getBinanceOrderBook();
-  }
-
-  @Get('kraken-orderbook')
-  getKrakenOrderBook(): any {
-    return this.appService.getKrakenOrderBook();
-  }
-
-  @Get('huobi-orderbook')
-  getHuobiOrderBook(): any {
-    return this.appService.getHuobiOrderBook();
-  }
-
-  @Get('average-midprice')
-  async getAverageMidPrice(): Promise<number> {
-    return this.appService.getAverageMidPrice();
+  @Get('global-price-index')
+  @ApiOperation({ summary: 'Get global price index' })
+  @ApiResponse({
+    status: 200,
+    description: 'The global price index has been successfully retrieved.',
+    type: AverageMidPriceDto,
+  })
+  async getGlobalPriceIndex(): Promise<AverageMidPriceDto> {
+    this.logger.log('Handling GET request for /global-price-index');
+    const price = await this.appService.getGlobalPriceIndex();
+    return price;
   }
 }

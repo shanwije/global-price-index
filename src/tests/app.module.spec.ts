@@ -1,12 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExchangesModule } from './exchanges.module';
-import { BinanceService } from './binance/binance.service';
-import { KrakenService } from './kraken/kraken.service';
-import { HuobiService } from './huobi/huobi.service';
+import { AppModule } from '../app.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule } from '@nestjs/config';
+import { AppService } from '../app.service';
+import { AppController } from '../app.controller';
+import { BinanceService } from '../exchanges/services/binance.service';
+import { KrakenService } from '../exchanges/services/kraken.service';
+import { HuobiService } from '../exchanges/services/huobi.service';
 
-describe('ExchangesModule', () => {
+describe('AppModule', () => {
   let module: TestingModule;
 
   beforeEach(async () => {
@@ -17,13 +19,23 @@ describe('ExchangesModule', () => {
           ttl: 5,
           max: 10,
         }),
-        ExchangesModule,
+        AppModule,
       ],
     }).compile();
   });
 
   it('should be defined', () => {
     expect(module).toBeDefined();
+  });
+
+  it('should provide AppService', () => {
+    const service = module.get<AppService>(AppService);
+    expect(service).toBeDefined();
+  });
+
+  it('should provide AppController', () => {
+    const controller = module.get<AppController>(AppController);
+    expect(controller).toBeDefined();
   });
 
   it('should provide BinanceService', () => {
