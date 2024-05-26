@@ -1,12 +1,16 @@
-import { Observable, Subject } from 'rxjs';
 import { Exchange } from './exchange.interface';
 import * as WebSocket from 'ws';
-import { Logger } from '@nestjs/common';
+import { Logger, Inject } from '@nestjs/common';
+import { Cache } from 'cache-manager';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 
 export abstract class AbstractExchange implements Exchange {
   protected ws: WebSocket;
   protected readonly logger = new Logger(AbstractExchange.name);
   protected latestOrderBook: any = null;
+  protected data: any = null;
+
+  constructor(@Inject(CACHE_MANAGER) protected cacheManager: Cache) {}
 
   abstract connect(): void;
 
@@ -45,4 +49,31 @@ export abstract class AbstractExchange implements Exchange {
   }
 
   protected abstract handleMessage(data: any): void;
+
+  protected async calculateAndCacheMidPrice(orderBook: any): Promise<number> {
+    if (!orderBook || !orderBook.bids || !orderBook.asks) {
+      return null;
+    }
+    const bestBid = parseFloat(orderBook.bids[0][0]);
+    const bestAsk = parseFloat(orderBook.asks[0][0]);
+    const midPrice = (bestBid + bestAsk) / 2;
+
+    await this.cacheManager.set('midPrice', midPrice);
+    this.logger.log(`Cached mid price: ${midPrice}`);
+    return midPrice;
+  }
+
+  async getMidPrice(): Promise<number> {
+    const midPrice = await this.cacheManager.get<number>('midPrice');
+    this.logger.log(`Retrieved mid price from cache: ${midPrice}`);
+
+    if (midPrice !== undefined && midPrice !== null) {
+      return midPrice;
+    } else if (this.data) {
+      this.logger.log(`cache miss: ${midPrice}`);
+      return this.calculateAndCacheMidPrice(this.data);
+    } else {
+      return null;
+    }
+  }
 }

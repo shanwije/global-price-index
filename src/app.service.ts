@@ -9,10 +9,6 @@ export class AppService implements OnModuleInit {
     this.binanceService.connect();
   }
 
-  getBinanceOrderBook(): any {
-    return this.binanceService.getLatestOrderBook();
-  }
-
   getBinanceMidPrice(): Promise<number> {
     return this.binanceService.getMidPrice();
   }

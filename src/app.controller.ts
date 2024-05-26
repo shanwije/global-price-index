@@ -5,11 +5,6 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get('binance-orderbook')
-  getBinanceOrderBook(): any {
-    return this.appService.getBinanceOrderBook();
-  }
-
   @Get('binance-midprice')
   async getBinanceMidPrice(): Promise<number> {
     const midPrice = await this.appService.getBinanceMidPrice();
