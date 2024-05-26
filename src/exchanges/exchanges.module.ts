@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { BinanceService } from './binance/binance.service';
-import { KrakenService } from './kraken/kraken.service';
-import { HuobiService } from './huobi/huobi.service';
+import { BinanceService } from './services/binance.service';
+import { KrakenService } from './services/kraken.service';
+import { HuobiService } from './services/huobi.service';
 import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({

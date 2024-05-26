@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { BinanceService } from './exchanges/binance/binance.service';
-import { KrakenService } from './exchanges/kraken/kraken.service';
-import { HuobiService } from './exchanges/huobi/huobi.service';
+import { BinanceService } from './exchanges/services/binance.service';
+import { KrakenService } from './exchanges/services/kraken.service';
+import { HuobiService } from './exchanges/services/huobi.service';
 import { AverageMidPriceDto } from './dto/global-price-index.dto';
 
 @Injectable()
@@ -13,6 +13,12 @@ export class AppService {
     private readonly krakenService: KrakenService,
     private readonly huobiService: HuobiService,
   ) {}
+
+  onModuleInit() {
+    this.binanceService.connect();
+    this.krakenService.connect();
+    this.huobiService.connect();
+  }
 
   async getGlobalPriceIndex(): Promise<AverageMidPriceDto> {
     const prices: number[] = [];

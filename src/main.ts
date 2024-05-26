@@ -12,8 +12,7 @@ async function bootstrap() {
 
   const port = configService.get<number>('port') || 3000;
 
-  const logLevel =
-    (configService.get<string>('logLevel') as LogLevel) || 'debug';
+  const logLevel = (configService.get<string>('logLevel') as LogLevel) || 'log';
 
   Logger.overrideLogger([logLevel]);
 
