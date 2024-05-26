@@ -5,9 +5,23 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  @Get('binance-orderbook')
+  getBinanceOrderBook(): any {
+    return this.appService.getBinanceOrderBook();
+  }
+
+  @Get('kraken-orderbook')
+  getKrakenOrderBook(): any {
+    return this.appService.getKrakenOrderBook();
+  }
+
   @Get('binance-midprice')
   async getBinanceMidPrice(): Promise<number> {
-    const midPrice = await this.appService.getBinanceMidPrice();
-    return midPrice;
+    return this.appService.getBinanceMidPrice();
+  }
+
+  @Get('kraken-midprice')
+  async getKrakenMidPrice(): Promise<number> {
+    return this.appService.getKrakenMidPrice();
   }
 }

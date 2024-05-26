@@ -3,14 +3,20 @@ import * as WebSocket from 'ws';
 import { Logger, Inject } from '@nestjs/common';
 import { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
 
 export abstract class AbstractExchange implements Exchange {
   protected ws: WebSocket;
   protected readonly logger = new Logger(AbstractExchange.name);
   protected latestOrderBook: any = null;
   protected data: any = null;
+  protected wsUrl: string;
+  protected wsSubscriptionMessage: any;
 
-  constructor(@Inject(CACHE_MANAGER) protected cacheManager: Cache) {}
+  constructor(
+    @Inject(CACHE_MANAGER) protected cacheManager: Cache,
+    protected configService: ConfigService,
+  ) {}
 
   abstract connect(): void;
 
@@ -22,6 +28,9 @@ export abstract class AbstractExchange implements Exchange {
     this.ws = new WebSocket(url);
     this.ws.on('open', () => {
       this.logger.log(`Connected to ${this.constructor.name}`);
+      if (this.wsSubscriptionMessage) {
+        this.ws.send(JSON.stringify(this.wsSubscriptionMessage));
+      }
     });
 
     this.ws.on('message', (data) => {
@@ -29,8 +38,8 @@ export abstract class AbstractExchange implements Exchange {
       try {
         const parsedData = JSON.parse(data.toString());
         this.logger.debug(`Message data: ${JSON.stringify(parsedData)}`);
-        this.latestOrderBook = parsedData;
-        this.handleMessage(parsedData);
+        this.latestOrderBook = parsedData; // Store the latest order book data
+        this.handleMessage(parsedData); // Additional processing
       } catch (error) {
         this.logger.error(`Error parsing message: ${error}`);
       }
@@ -66,11 +75,9 @@ export abstract class AbstractExchange implements Exchange {
   async getMidPrice(): Promise<number> {
     const midPrice = await this.cacheManager.get<number>('midPrice');
     this.logger.log(`Retrieved mid price from cache: ${midPrice}`);
-
     if (midPrice !== undefined && midPrice !== null) {
       return midPrice;
     } else if (this.data) {
-      this.logger.log(`cache miss: ${midPrice}`);
       return this.calculateAndCacheMidPrice(this.data);
     } else {
       return null;
