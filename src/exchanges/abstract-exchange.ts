@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
@@ -26,7 +26,67 @@ export abstract class AbstractExchange implements Exchange {
   }
 
   abstract connect(): void;
+
   abstract handleMessage(data: any): void;
+
+  async calculateAndCacheMidPrice(orderBook: any): Promise<number> {
+    if (
+      !orderBook ||
+      !orderBook.bids ||
+      !orderBook.asks ||
+      orderBook.bids.length === 0 ||
+      orderBook.asks.length === 0
+    ) {
+      this.logger.warn(`${this.constructor.name} - Invalid order book data`);
+      return null;
+    }
+
+    const bestBid = parseFloat(orderBook.bids[0][0]);
+    const bestAsk = parseFloat(orderBook.asks[0][0]);
+
+    this.logger.debug(
+      `${this.constructor.name} - Best Bid: ${bestBid}, Best Ask: ${bestAsk}`,
+    );
+
+    if (isNaN(bestBid) || isNaN(bestAsk)) {
+      this.logger.warn(`${this.constructor.name} - Invalid bid/ask values`);
+      return null;
+    }
+
+    const midPrice = (bestBid + bestAsk) / 2;
+
+    this.logger.debug(
+      `${this.constructor.name} - Calculated mid price: ${midPrice}`,
+    );
+
+    const cacheKey = `${this.constructor.name.toLowerCase()}MidPrice`;
+    await this.cacheManager.set(cacheKey, midPrice);
+    this.logger.log(`${this.constructor.name} - Cached mid price: ${midPrice}`);
+    return midPrice;
+  }
+
+  async getMidPrice(): Promise<number> {
+    const cacheKey = `${this.constructor.name.toLowerCase()}MidPrice`;
+    const midPrice = await this.cacheManager.get<number>(cacheKey);
+    this.logger.log(
+      `${this.constructor.name} - Retrieved mid price from cache: ${midPrice}`,
+    );
+
+    if (midPrice !== undefined && midPrice !== null) {
+      return midPrice;
+    } else {
+      this.logger.log(
+        `${this.constructor.name} - Waiting for data to calculate mid price`,
+      );
+      const data = await this.waitForData();
+      return this.calculateAndCacheMidPrice(data);
+    }
+  }
+
+  getOrderBook(): any {
+    this.logger.log(`${this.constructor.name} - Retrieving latest order book`);
+    return this.latestOrderBook;
+  }
 
   protected setupWebSocket(url: string): void {
     this.logger.log(
@@ -123,68 +183,9 @@ export abstract class AbstractExchange implements Exchange {
     });
   }
 
-  async calculateAndCacheMidPrice(orderBook: any): Promise<number> {
-    if (
-      !orderBook ||
-      !orderBook.bids ||
-      !orderBook.asks ||
-      orderBook.bids.length === 0 ||
-      orderBook.asks.length === 0
-    ) {
-      this.logger.warn(`${this.constructor.name} - Invalid order book data`);
-      return null;
-    }
-
-    const bestBid = parseFloat(orderBook.bids[0][0]);
-    const bestAsk = parseFloat(orderBook.asks[0][0]);
-
-    this.logger.debug(
-      `${this.constructor.name} - Best Bid: ${bestBid}, Best Ask: ${bestAsk}`,
-    );
-
-    if (isNaN(bestBid) || isNaN(bestAsk)) {
-      this.logger.warn(`${this.constructor.name} - Invalid bid/ask values`);
-      return null;
-    }
-
-    const midPrice = (bestBid + bestAsk) / 2;
-
-    this.logger.debug(
-      `${this.constructor.name} - Calculated mid price: ${midPrice}`,
-    );
-
-    const cacheKey = `${this.constructor.name.toLowerCase()}MidPrice`;
-    await this.cacheManager.set(cacheKey, midPrice);
-    this.logger.log(`${this.constructor.name} - Cached mid price: ${midPrice}`);
-    return midPrice;
-  }
-
-  async getMidPrice(): Promise<number> {
-    const cacheKey = `${this.constructor.name.toLowerCase()}MidPrice`;
-    const midPrice = await this.cacheManager.get<number>(cacheKey);
-    this.logger.log(
-      `${this.constructor.name} - Retrieved mid price from cache: ${midPrice}`,
-    );
-
-    if (midPrice !== undefined && midPrice !== null) {
-      return midPrice;
-    } else {
-      this.logger.log(
-        `${this.constructor.name} - Waiting for data to calculate mid price`,
-      );
-      const data = await this.waitForData();
-      return this.calculateAndCacheMidPrice(data);
-    }
-  }
-
   private waitForData(): Promise<any> {
     return new Promise((resolve) => {
       this.dataPromiseResolve = resolve;
     });
-  }
-
-  getOrderBook(): any {
-    this.logger.log(`${this.constructor.name} - Retrieving latest order book`);
-    return this.latestOrderBook;
   }
 }
