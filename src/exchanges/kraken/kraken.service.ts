@@ -39,6 +39,9 @@ export class KrakenService extends AbstractExchange {
       const [, orderBook] = data;
       this.data = orderBook;
       this.calculateAndCacheMidPrice(orderBook);
+    } else {
+      // For testing purposes
+      this.calculateAndCacheMidPrice(data);
     }
   }
 }

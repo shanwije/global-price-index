@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
 import { BinanceService } from './exchanges/binance/binance.service';
 import { KrakenService } from './exchanges/kraken/kraken.service';
 import { HuobiService } from './exchanges/huobi/huobi.service';
@@ -43,11 +43,19 @@ export class AppService implements OnModuleInit {
   }
 
   async getAverageMidPrice(): Promise<number> {
-    const cachedAverageMidPrice =
-      await this.cacheManager.get<number>('averageMidPrice');
-    if (cachedAverageMidPrice !== undefined && cachedAverageMidPrice !== null) {
-      return cachedAverageMidPrice;
-    } else {
+    try {
+      const cachedAverageMidPrice =
+        await this.cacheManager.get<number>('averageMidPrice');
+      if (
+        cachedAverageMidPrice !== undefined &&
+        cachedAverageMidPrice !== null
+      ) {
+        return cachedAverageMidPrice;
+      } else {
+        return this.calculateAndCacheAverageMidPrice();
+      }
+    } catch (error) {
+      console.error('Error retrieving from cache:', error);
       return this.calculateAndCacheAverageMidPrice();
     }
   }

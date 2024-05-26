@@ -7,9 +7,6 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class HuobiService extends AbstractExchange {
   readonly logger = new Logger(HuobiService.name);
-  protected ws: WebSocket;
-  protected wsUrl: string;
-  wsSubscriptionMessage: any;
 
   constructor(
     @Inject(CACHE_MANAGER) cacheManager: Cache,
@@ -37,6 +34,9 @@ export class HuobiService extends AbstractExchange {
     if (data.ch && data.tick) {
       this.data = data.tick;
       this.calculateAndCacheMidPrice(data.tick);
+    } else {
+      // For testing purposes
+      this.calculateAndCacheMidPrice(data);
     }
   }
 }

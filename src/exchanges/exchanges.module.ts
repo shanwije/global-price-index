@@ -11,8 +11,8 @@ import { CacheModule } from '@nestjs/cache-manager';
     CacheModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        ttl: parseInt(configService.get<string>('CACHE_TTL'), 10), // seconds
-        max: parseInt(configService.get<string>('CACHE_MAX'), 10), // maximum number of items in cache
+        ttl: parseInt(configService.get<string>('CACHE_TTL'), 10),
+        max: parseInt(configService.get<string>('CACHE_MAX'), 10),
       }),
       inject: [ConfigService],
     }),
