@@ -36,7 +36,24 @@ Create a .env file in the root of the project and add the following configuratio
    HUOBI_WS_CURRENCY_PAIR=btcusdt
    HUOBI_WS_DEPTH=step0
 
-4. Running the Application
+## Running the Application
+   ### using docker
+
+**Docker Setup**
+You can run the application using Docker. This section provides the necessary steps to build and run the application in a Docker container.
+
+**Build the Docker Image**:
+
+```bash
+docker-compose build
+```
+Run the Docker Container:
+```
+```bash
+docker-compose up
+```
+
+**or can be run using npm**:
    ```bash
    npm start
    ```
