@@ -20,18 +20,8 @@ export class AppController {
     return this.appService.getHuobiOrderBook();
   }
 
-  @Get('binance-midprice')
-  async getBinanceMidPrice(): Promise<number> {
-    return this.appService.getBinanceMidPrice();
-  }
-
-  @Get('kraken-midprice')
-  async getKrakenMidPrice(): Promise<number> {
-    return this.appService.getKrakenMidPrice();
-  }
-
-  @Get('huobi-midprice')
-  async getHuobiMidPrice(): Promise<number> {
-    return this.appService.getHuobiMidPrice();
+  @Get('average-midprice')
+  async getAverageMidPrice(): Promise<number> {
+    return this.appService.getAverageMidPrice();
   }
 }
