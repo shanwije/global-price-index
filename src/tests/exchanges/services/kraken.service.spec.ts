@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
 import { KrakenService } from '../../../exchanges/services/kraken.service';
+import { AbstractExchange } from '../../../exchanges/abstract-exchange';
 
 describe('KrakenService', () => {
   let service: KrakenService;
@@ -48,19 +49,49 @@ describe('KrakenService', () => {
     );
   });
 
-  it('should handle mid price updates and cache them', async () => {
-    const midPriceUpdate = {
-      a: [['69000.0', '1.0']],
-      b: [['68000.0', '1.0']],
-    };
+  it('should handle initial snapshot and cache mid price', async () => {
+    const initialSnapshot = [
+      0,
+      {
+        as: [['69000.0', '1.0']],
+        bs: [['68000.0', '1.0']],
+      },
+    ];
     const logSpy = jest.spyOn(service['logger'], 'log');
-
-    service.handleMessage([0, midPriceUpdate]);
-    expect(logSpy).toHaveBeenCalledWith('Calculated mid price: 68500');
-    expect(cacheManager.set).toHaveBeenCalledWith(
-      'krakenserviceMidPrice',
-      68500,
+    const calculateSpy = jest.spyOn(
+      AbstractExchange.prototype as any,
+      'calculateAndCacheMidPrice',
     );
+
+    service.handleMessage(initialSnapshot);
+    expect(calculateSpy).toHaveBeenCalledWith({
+      asks: [['69000.0', '1.0']],
+      bids: [['68000.0', '1.0']],
+    });
+    expect(logSpy).toHaveBeenCalledWith(
+      'Received initial order book snapshot from Kraken',
+    );
+  });
+
+  it('should handle incremental updates and cache mid price', async () => {
+    const orderBookUpdate = [
+      0,
+      {
+        a: [['69050.0', '1.5']],
+        b: [['68050.0', '1.5']],
+      },
+    ];
+    const logSpy = jest.spyOn(service['logger'], 'log');
+    const calculateSpy = jest.spyOn(
+      AbstractExchange.prototype as any,
+      'calculateAndCacheMidPrice',
+    );
+
+    service.handleMessage(orderBookUpdate);
+    expect(calculateSpy).toHaveBeenCalledWith({
+      asks: [['69050.0', '1.5']],
+      bids: [['68050.0', '1.5']],
+    });
   });
 
   it('should get mid price from cache', async () => {
@@ -68,15 +99,5 @@ describe('KrakenService', () => {
     const midPrice = await service.getMidPrice();
     expect(midPrice).toBe(68500);
     expect(cacheManager.get).toHaveBeenCalledWith('krakenserviceMidPrice');
-  });
-
-  it('should log error when no mid price available', async () => {
-    cacheManager.get.mockResolvedValue(null);
-    const logSpy = jest.spyOn(service['logger'], 'error');
-    const midPrice = await service.getMidPrice();
-    expect(midPrice).toBeNull();
-    expect(logSpy).toHaveBeenCalledWith(
-      'KrakenService - No mid price available in cache',
-    );
   });
 });

@@ -74,7 +74,7 @@ export abstract class AbstractExchange implements Exchange {
     this.logger.debug(`${this.constructor.name} - Handling plain message`);
     const parsedData = JSON.parse(data.toString());
     this.logger.debug(
-      `${this.constructor.name} - Message data received: ${JSON.stringify(parsedData).slice(0, 100)}...`,
+      `${this.constructor.name} - Message data received: ${JSON.stringify(parsedData)}...`,
     );
     this.latestOrderBook = parsedData;
     this.handleMessage(parsedData);
@@ -92,7 +92,7 @@ export abstract class AbstractExchange implements Exchange {
 
       const parsedData = JSON.parse(decompressed.toString());
       this.logger.debug(
-        `${this.constructor.name} - Message data received: ${JSON.stringify(parsedData).slice(0, 100)}...`,
+        `${this.constructor.name} - Message data received: ${JSON.stringify(parsedData)}...`,
       );
       this.latestOrderBook = parsedData;
       this.handleMessage(parsedData);
