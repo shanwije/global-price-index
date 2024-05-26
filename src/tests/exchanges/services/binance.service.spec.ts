@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BinanceService } from './binance.service';
-import { ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
 
 describe('BinanceService', () => {
@@ -30,21 +29,48 @@ describe('BinanceService', () => {
     expect(service).toBeDefined();
   });
 
-  it('should connect to websocket', () => {
+  it('should connect to WebSocket', () => {
     const connectSpy = jest.spyOn(service, 'connect');
     service.connect();
     expect(connectSpy).toHaveBeenCalled();
   });
 
-  it('should handle messages', async () => {
+  it('should handle plain messages and cache mid price', async () => {
     const orderBook = { bids: [['100', '1']], asks: [['200', '1']] };
+    const calculateAndCacheMidPriceSpy = jest.spyOn(
+      service,
+      'calculateAndCacheMidPrice',
+    );
+
     service.handleMessage(orderBook);
-    expect(cacheManager.set).toHaveBeenCalled();
+    expect(calculateAndCacheMidPriceSpy).toHaveBeenCalledWith(orderBook);
   });
 
   it('should get mid price from cache', async () => {
     cacheManager.get.mockResolvedValue(150);
     const midPrice = await service.getMidPrice();
     expect(midPrice).toBe(150);
+    expect(cacheManager.get).toHaveBeenCalledWith('binanceserviceMidPrice');
+  });
+
+  it('should calculate and cache mid price if not in cache', async () => {
+    const orderBook = { bids: [['100', '1']], asks: [['200', '1']] };
+    service['data'] = orderBook; // Directly setting protected member for test
+
+    cacheManager.get.mockResolvedValue(null);
+    const midPrice = await service.getMidPrice();
+    expect(midPrice).toBe(150);
+    expect(cacheManager.set).toHaveBeenCalledWith(
+      'binanceserviceMidPrice',
+      150,
+    );
+  });
+
+  it('should return null if no data and not in cache', async () => {
+    cacheManager.get.mockResolvedValue(null);
+    service['data'] = null; // Ensure no data is set
+
+    const midPrice = await service.getMidPrice();
+    expect(midPrice).toBeNull();
   });
 });

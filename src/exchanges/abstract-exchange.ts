@@ -18,9 +18,7 @@ export abstract class AbstractExchange implements Exchange {
   constructor(
     @Inject(CACHE_MANAGER) protected cacheManager: Cache,
     protected configService: ConfigService,
-  ) {
-    this.logger.log(`${this.constructor.name} instantiated`);
-  }
+  ) {}
 
   abstract connect(): void;
   abstract handleMessage(data: any): void;
@@ -35,12 +33,10 @@ export abstract class AbstractExchange implements Exchange {
       this.logger.log(`${this.constructor.name} - Connected to WebSocket`);
       if (this.wsSubscriptionMessage) {
         this.ws.send(JSON.stringify(this.wsSubscriptionMessage));
-        this.logger.log(`${this.constructor.name} - Subscription message sent`);
       }
     });
 
     this.ws.on('message', (data) => {
-      this.logger.log(`${this.constructor.name} - Received message`);
       try {
         if (this.constructor.name === 'HuobiService') {
           this.handleGzipMessage(data);
@@ -69,17 +65,12 @@ export abstract class AbstractExchange implements Exchange {
   }
 
   protected handlePlainMessage(data: any): void {
-    this.logger.debug(`${this.constructor.name} - Handling plain message`);
     const parsedData = JSON.parse(data.toString());
-    this.logger.debug(
-      `${this.constructor.name} - Message data received: ${JSON.stringify(parsedData).slice(0, 100)}...`,
-    );
     this.latestOrderBook = parsedData;
     this.handleMessage(parsedData);
   }
 
   protected handleGzipMessage(data: any): void {
-    this.logger.debug(`${this.constructor.name} - Handling gzip message`);
     zlib.gunzip(data, (err, decompressed) => {
       if (err) {
         this.logger.error(
@@ -89,9 +80,6 @@ export abstract class AbstractExchange implements Exchange {
       }
 
       const parsedData = JSON.parse(decompressed.toString());
-      this.logger.debug(
-        `${this.constructor.name} - Message data received: ${JSON.stringify(parsedData).slice(0, 100)}...`,
-      );
       this.latestOrderBook = parsedData;
       this.handleMessage(parsedData);
     });
@@ -108,16 +96,12 @@ export abstract class AbstractExchange implements Exchange {
 
     const cacheKey = `${this.constructor.name.toLowerCase()}MidPrice`;
     await this.cacheManager.set(cacheKey, midPrice);
-    this.logger.log(`${this.constructor.name} - Cached mid price: ${midPrice}`);
     return midPrice;
   }
 
   async getMidPrice(): Promise<number> {
     const cacheKey = `${this.constructor.name.toLowerCase()}MidPrice`;
     const midPrice = await this.cacheManager.get<number>(cacheKey);
-    this.logger.log(
-      `${this.constructor.name} - Retrieved mid price from cache: ${midPrice}`,
-    );
 
     if (midPrice) {
       return midPrice;
@@ -129,7 +113,6 @@ export abstract class AbstractExchange implements Exchange {
   }
 
   getOrderBook(): any {
-    this.logger.log(`${this.constructor.name} - Retrieving latest order book`);
     return this.latestOrderBook;
   }
 }
