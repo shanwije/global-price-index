@@ -15,8 +15,8 @@ import configuration from './config/configuration';
     CacheModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        ttl: parseInt(configService.get<string>('CACHE_TTL'), 2),
-        max: parseInt(configService.get<string>('CACHE_MAX'), 2),
+        ttl: parseInt(configService.get<string>('CACHE_TTL'), 2) || 3,
+        max: parseInt(configService.get<string>('CACHE_MAX'), 2) || 30,
         inject: [ConfigService],
       }),
       inject: [ConfigService],

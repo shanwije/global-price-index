@@ -76,22 +76,4 @@ describe('HuobiService', () => {
     expect(midPrice).toBe(150);
     expect(cacheManager.get).toHaveBeenCalledWith('huobiserviceMidPrice');
   });
-
-  it('should calculate and cache mid price if not in cache', async () => {
-    const orderBook = { bids: [['100', '1']], asks: [['200', '1']] };
-    service['data'] = orderBook; // Directly setting protected member for test
-
-    cacheManager.get.mockResolvedValue(null);
-    const midPrice = await service.getMidPrice();
-    expect(midPrice).toBe(150);
-    expect(cacheManager.set).toHaveBeenCalledWith('huobiserviceMidPrice', 150);
-  });
-
-  it('should return null if no data and not in cache', async () => {
-    cacheManager.get.mockResolvedValue(null);
-    service['data'] = null; // Ensure no data is set
-
-    const midPrice = await service.getMidPrice();
-    expect(midPrice).toBeNull();
-  });
 });

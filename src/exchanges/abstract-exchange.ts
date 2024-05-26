@@ -14,6 +14,9 @@ export abstract class AbstractExchange implements Exchange {
   protected data: any = null;
   protected wsUrl: string;
   protected wsSubscriptionMessage: any;
+  private lastMessageTimestamp: number = 0;
+
+  private dataPromiseResolve: ((data: any) => void) | null = null;
 
   constructor(
     @Inject(CACHE_MANAGER) protected cacheManager: Cache,
@@ -42,16 +45,23 @@ export abstract class AbstractExchange implements Exchange {
     });
 
     this.ws.on('message', (data) => {
-      // this.logger.log(`${this.constructor.name} - Received message: ${data}`);
-      try {
-        if (this.constructor.name === 'HuobiService') {
-          this.handleGzipMessage(data);
-        } else {
-          this.handlePlainMessage(data);
+      const now = Date.now();
+      if (now - this.lastMessageTimestamp > 100) {
+        this.lastMessageTimestamp = now;
+        try {
+          if (this.constructor.name === 'HuobiService') {
+            this.handleGzipMessage(data);
+          } else {
+            this.handlePlainMessage(data);
+          }
+        } catch (error) {
+          this.logger.error(
+            `${this.constructor.name} - Error parsing message: ${error.message}`,
+          );
         }
-      } catch (error) {
-        this.logger.error(
-          `${this.constructor.name} - Error parsing message: ${error.message}`,
+      } else {
+        this.logger.debug(
+          `${this.constructor.name} - Skipping message to avoid flooding`,
         );
       }
     });
@@ -77,6 +87,13 @@ export abstract class AbstractExchange implements Exchange {
       `${this.constructor.name} - Message data received: ${JSON.stringify(parsedData)}...`,
     );
     this.latestOrderBook = parsedData;
+    this.data = parsedData; // Set this.data to the latest order book data
+
+    if (this.dataPromiseResolve) {
+      this.dataPromiseResolve(this.data);
+      this.dataPromiseResolve = null;
+    }
+
     this.handleMessage(parsedData);
   }
 
@@ -95,12 +112,25 @@ export abstract class AbstractExchange implements Exchange {
         `${this.constructor.name} - Message data received: ${JSON.stringify(parsedData)}...`,
       );
       this.latestOrderBook = parsedData;
+      this.data = parsedData; // Set this.data to the latest order book data
+
+      if (this.dataPromiseResolve) {
+        this.dataPromiseResolve(this.data);
+        this.dataPromiseResolve = null;
+      }
+
       this.handleMessage(parsedData);
     });
   }
 
   async calculateAndCacheMidPrice(orderBook: any): Promise<number> {
-    if (!orderBook || !orderBook.bids || !orderBook.asks) {
+    if (
+      !orderBook ||
+      !orderBook.bids ||
+      !orderBook.asks ||
+      orderBook.bids.length === 0 ||
+      orderBook.asks.length === 0
+    ) {
       this.logger.warn(`${this.constructor.name} - Invalid order book data`);
       return null;
     }
@@ -136,16 +166,21 @@ export abstract class AbstractExchange implements Exchange {
       `${this.constructor.name} - Retrieved mid price from cache: ${midPrice}`,
     );
 
-    if (midPrice) {
+    if (midPrice !== undefined && midPrice !== null) {
       return midPrice;
-    } else if (this.data) {
-      return this.calculateAndCacheMidPrice(this.data);
     } else {
-      this.logger.error(
-        `${this.constructor.name} - No data available to calculate mid price`,
+      this.logger.log(
+        `${this.constructor.name} - Waiting for data to calculate mid price`,
       );
-      return null;
+      const data = await this.waitForData();
+      return this.calculateAndCacheMidPrice(data);
     }
+  }
+
+  private waitForData(): Promise<any> {
+    return new Promise((resolve) => {
+      this.dataPromiseResolve = resolve;
+    });
   }
 
   getOrderBook(): any {
