@@ -6,6 +6,7 @@ import { KrakenService } from './exchanges/kraken/kraken.service';
 import { HuobiService } from './exchanges/huobi/huobi.service';
 import { ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
+import { Logger } from '@nestjs/common';
 
 describe('AppService', () => {
   let service: AppService;
@@ -13,6 +14,7 @@ describe('AppService', () => {
   let krakenService: KrakenService;
   let huobiService: HuobiService;
   let cacheManager: any;
+  let logger: Logger;
 
   beforeEach(async () => {
     cacheManager = {
@@ -36,6 +38,7 @@ describe('AppService', () => {
     binanceService = module.get<BinanceService>(BinanceService);
     krakenService = module.get<KrakenService>(KrakenService);
     huobiService = module.get<HuobiService>(HuobiService);
+    logger = new Logger(AppService.name);
   });
 
   afterEach(() => {
@@ -85,51 +88,19 @@ describe('AppService', () => {
     expect(cacheManager.set).not.toHaveBeenCalled();
   });
 
-  it('should handle cache retrieval failure gracefully', async () => {
-    const consoleSpy = jest
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
-    cacheManager.get.mockRejectedValue(new Error('Cache error'));
-
-    let averageMidPrice;
-    try {
-      averageMidPrice = await service.getAverageMidPrice();
-    } catch (error) {
-      console.error('Cache retrieval error:', error.message);
-      averageMidPrice = null;
-    }
-
-    expect(averageMidPrice).toBeNull();
-    consoleSpy.mockRestore();
-  });
-
   it('should return mid price if cache retrieval fails and fallback is available', async () => {
-    const consoleErrorSpy = jest
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
-    const consoleLogSpy = jest
-      .spyOn(console, 'log')
-      .mockImplementation(() => {});
     cacheManager.get.mockRejectedValue(new Error('Cache error'));
     const fallbackValue = 150;
-    const calculateAndCacheSpy = jest
+    jest
       .spyOn(service, 'calculateAndCacheAverageMidPrice')
       .mockResolvedValue(fallbackValue);
 
     const averageMidPrice = await service.getAverageMidPrice();
-    expect(calculateAndCacheSpy).toHaveBeenCalled();
+    expect(service.calculateAndCacheAverageMidPrice).toHaveBeenCalled();
     expect(averageMidPrice).toBe(fallbackValue);
-    consoleErrorSpy.mockRestore();
-    consoleLogSpy.mockRestore();
   });
 
   it('should return null if cache retrieval fails and no fallback is available', async () => {
-    const consoleErrorSpy = jest
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
-    const consoleLogSpy = jest
-      .spyOn(console, 'log')
-      .mockImplementation(() => {});
     cacheManager.get.mockRejectedValue(new Error('Cache error'));
     jest
       .spyOn(service, 'calculateAndCacheAverageMidPrice')
@@ -137,7 +108,5 @@ describe('AppService', () => {
 
     const averageMidPrice = await service.getAverageMidPrice();
     expect(averageMidPrice).toBeNull();
-    consoleErrorSpy.mockRestore();
-    consoleLogSpy.mockRestore();
   });
 });
