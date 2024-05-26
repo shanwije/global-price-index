@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule, CACHE_MANAGER } from '@nestjs/cache-manager';
-import { TestExchangeService } from './test-exchange.service';
+import { TestExchangeService } from '../../exchanges/test-exchange.service';
 import * as WebSocket from 'ws';
 
 describe('AbstractExchange', () => {

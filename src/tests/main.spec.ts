@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AppModule } from './app.module';
+import { AppModule } from '../app.module';
 import { INestApplication } from '@nestjs/common';
 
 describe('Main (e2e)', () => {

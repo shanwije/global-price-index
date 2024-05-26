@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { KrakenService } from './kraken.service';
+import { KrakenService } from '../../../exchanges/services/kraken.service';
 import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
 
 describe('KrakenService', () => {

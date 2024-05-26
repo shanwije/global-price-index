@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { BinanceService } from './binance.service';
+import { BinanceService } from '../../../exchanges/services/binance.service';
 import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
 
 describe('BinanceService', () => {

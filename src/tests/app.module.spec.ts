@@ -4,9 +4,9 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule } from '@nestjs/config';
 import { AppService } from '../app.service';
 import { AppController } from '../app.controller';
-import { BinanceService } from '../exchanges/binance/binance.service';
-import { KrakenService } from '../exchanges/kraken/kraken.service';
-import { HuobiService } from '../exchanges/huobi/huobi.service';
+import { BinanceService } from '../exchanges/services/binance.service';
+import { KrakenService } from '../exchanges/services/kraken.service';
+import { HuobiService } from '../exchanges/services/huobi.service';
 
 describe('AppModule', () => {
   let module: TestingModule;

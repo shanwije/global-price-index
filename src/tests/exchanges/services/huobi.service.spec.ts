@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { HuobiService } from './huobi.service';
+import { HuobiService } from '../../../exchanges/services/huobi.service';
 import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
 import * as WebSocket from 'ws';
 
