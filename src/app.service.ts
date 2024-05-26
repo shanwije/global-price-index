@@ -1,6 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { BinanceService } from './exchanges/binance/binance.service';
-import { Observable } from 'rxjs';
 
 @Injectable()
 export class AppService implements OnModuleInit {
@@ -10,7 +9,7 @@ export class AppService implements OnModuleInit {
     this.binanceService.connect();
   }
 
-  getBinanceOrderBook(): Observable<any> {
+  getBinanceOrderBook(): any {
     return this.binanceService.getOrderBook();
   }
 }

@@ -1,4 +1,4 @@
-import { Observable, Subject } from 'rxjs';
+import { Observable, BehaviorSubject } from 'rxjs';
 import { Exchange } from './exchange.interface';
 import * as WebSocket from 'ws';
 import { Logger } from '@nestjs/common';
@@ -6,12 +6,12 @@ import { Logger } from '@nestjs/common';
 export abstract class AbstractExchange implements Exchange {
   protected ws: WebSocket;
   protected readonly logger = new Logger(AbstractExchange.name);
-  public orderBook$: Subject<any> = new Subject();
+  private latestOrderBook: any = null;
 
   abstract connect(): void;
 
-  getOrderBook(): Observable<any> {
-    return this.orderBook$.asObservable();
+  getOrderBook(): any {
+    return this.latestOrderBook;
   }
 
   protected setupWebSocket(url: string): void {
@@ -25,7 +25,7 @@ export abstract class AbstractExchange implements Exchange {
       try {
         const parsedData = JSON.parse(data.toString());
         this.logger.debug(`Message data: ${JSON.stringify(parsedData)}`);
-        this.orderBook$.next(parsedData);
+        this.latestOrderBook = parsedData;
       } catch (error) {
         this.logger.error(`Error parsing message: ${error}`);
       }
