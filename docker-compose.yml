@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      - BINANCE_WS_URL=wss://stream.binance.com:9443/ws
+      - BINANCE_WS_DEPTH=depth
+      - BINANCE_WS_CURRENCY_PAIR=btcusdt
+      - KRAKEN_WS_URL=wss://ws.kraken.com
+      - KRAKEN_WS_DEPTH=10
+      - HUOBI_WS_URL=wss://api.huobi.pro/ws
+      - HUOBI_WS_CURRENCY_PAIR=btcusdt
+      - HUOBI_WS_DEPTH=step0
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
