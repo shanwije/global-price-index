@@ -9,4 +9,10 @@ export class AppController {
   getBinanceOrderBook(): any {
     return this.appService.getBinanceOrderBook();
   }
+
+  @Get('binance-midprice')
+  async getBinanceMidPrice(): Promise<number> {
+    const midPrice = await this.appService.getBinanceMidPrice();
+    return midPrice;
+  }
 }

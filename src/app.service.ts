@@ -10,6 +10,10 @@ export class AppService implements OnModuleInit {
   }
 
   getBinanceOrderBook(): any {
-    return this.binanceService.getOrderBook();
+    return this.binanceService.getLatestOrderBook();
+  }
+
+  getBinanceMidPrice(): Promise<number> {
+    return this.binanceService.getMidPrice();
   }
 }
