@@ -14,14 +14,19 @@ export class KrakenService extends AbstractExchange {
   ) {
     super(cacheManager, configService);
     this.wsUrl = this.configService.get<string>('KRAKEN_WS_URL');
+    const depth = parseInt(
+      this.configService.get<string>('KRAKEN_WS_DEPTH'),
+      10,
+    );
     this.wsSubscriptionMessage = {
       event: 'subscribe',
       pair: [this.configService.get<string>('KRAKEN_WS_CURRENCY_PAIR')],
       subscription: {
         name: 'book',
-        depth: this.configService.get<number>('KRAKEN_WS_DEPTH'),
+        depth: depth,
       },
     };
+    this.logger.log(`WebSocket URL: ${this.wsUrl}`);
   }
 
   connect(): void {
@@ -36,12 +41,47 @@ export class KrakenService extends AbstractExchange {
     }
 
     if (Array.isArray(data)) {
-      const [, orderBook] = data;
-      this.data = orderBook;
-      this.calculateAndCacheMidPrice(orderBook);
+      const orderBookData = data[1];
+
+      const bids = orderBookData.bs || orderBookData.b || [];
+      const asks = orderBookData.as || orderBookData.a || [];
+
+      if (bids.length > 0 && asks.length > 0) {
+        const bestBid = parseFloat(bids[0][0]);
+        const bestAsk = parseFloat(asks[0][0]);
+
+        if (!isNaN(bestBid) && !isNaN(bestAsk)) {
+          const midPrice = (bestBid + bestAsk) / 2;
+          this.logger.log(`Calculated mid price: ${midPrice}`);
+          this.cacheManager.set(
+            `${this.constructor.name.toLowerCase()}MidPrice`,
+            midPrice,
+          );
+        } else {
+          this.logger.warn(
+            `${this.constructor.name} - Invalid bid/ask values received`,
+          );
+        }
+      }
     } else {
-      // For testing purposes
-      this.calculateAndCacheMidPrice(data);
+      this.logger.warn(`Received non-array data: ${JSON.stringify(data)}`);
+    }
+  }
+
+  async getMidPrice(): Promise<number> {
+    const cacheKey = `${this.constructor.name.toLowerCase()}MidPrice`;
+    const midPrice = await this.cacheManager.get<number>(cacheKey);
+    this.logger.log(
+      `${this.constructor.name} - Retrieved mid price from cache: ${midPrice}`,
+    );
+
+    if (midPrice !== undefined && midPrice !== null) {
+      return midPrice;
+    } else {
+      this.logger.error(
+        `${this.constructor.name} - No mid price available in cache`,
+      );
+      return null;
     }
   }
 }

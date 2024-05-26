@@ -42,7 +42,7 @@ export abstract class AbstractExchange implements Exchange {
     });
 
     this.ws.on('message', (data) => {
-      this.logger.log(`${this.constructor.name} - Received message: ${data}`);
+      // this.logger.log(`${this.constructor.name} - Received message: ${data}`);
       try {
         if (this.constructor.name === 'HuobiService') {
           this.handleGzipMessage(data);
@@ -104,10 +104,6 @@ export abstract class AbstractExchange implements Exchange {
       this.logger.warn(`${this.constructor.name} - Invalid order book data`);
       return null;
     }
-
-    this.logger.debug(
-      `${this.constructor.name} - Order Book: ${JSON.stringify(orderBook)}`,
-    );
 
     const bestBid = parseFloat(orderBook.bids[0][0]);
     const bestAsk = parseFloat(orderBook.asks[0][0]);

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { KrakenService } from '../../../exchanges/services/kraken.service';
 import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
+import { KrakenService } from '../../../exchanges/services/kraken.service';
 
 describe('KrakenService', () => {
   let service: KrakenService;
@@ -48,50 +48,35 @@ describe('KrakenService', () => {
     );
   });
 
-  it('should handle data messages and cache mid price', async () => {
-    const orderBook = [{}, { bids: [['100', '1']], asks: [['200', '1']] }];
-    const calculateAndCacheMidPriceSpy = jest.spyOn(
-      service,
-      'calculateAndCacheMidPrice',
+  it('should handle mid price updates and cache them', async () => {
+    const midPriceUpdate = {
+      a: [['69000.0', '1.0']],
+      b: [['68000.0', '1.0']],
+    };
+    const logSpy = jest.spyOn(service['logger'], 'log');
+
+    service.handleMessage([0, midPriceUpdate]);
+    expect(logSpy).toHaveBeenCalledWith('Calculated mid price: 68500');
+    expect(cacheManager.set).toHaveBeenCalledWith(
+      'krakenserviceMidPrice',
+      68500,
     );
-
-    service.handleMessage(orderBook);
-    expect(calculateAndCacheMidPriceSpy).toHaveBeenCalledWith(orderBook[1]);
-  });
-
-  it('should handle plain data messages and cache mid price (for testing purposes)', async () => {
-    const orderBook = { bids: [['100', '1']], asks: [['200', '1']] };
-    const calculateAndCacheMidPriceSpy = jest.spyOn(
-      service,
-      'calculateAndCacheMidPrice',
-    );
-
-    service.handleMessage(orderBook);
-    expect(calculateAndCacheMidPriceSpy).toHaveBeenCalledWith(orderBook);
   });
 
   it('should get mid price from cache', async () => {
-    cacheManager.get.mockResolvedValue(150);
+    cacheManager.get.mockResolvedValue(68500);
     const midPrice = await service.getMidPrice();
-    expect(midPrice).toBe(150);
+    expect(midPrice).toBe(68500);
     expect(cacheManager.get).toHaveBeenCalledWith('krakenserviceMidPrice');
   });
 
-  it('should calculate and cache mid price if not in cache', async () => {
-    const orderBook = { bids: [['100', '1']], asks: [['200', '1']] };
-    service['data'] = orderBook; // Directly setting protected member for test
-
+  it('should log error when no mid price available', async () => {
     cacheManager.get.mockResolvedValue(null);
-    const midPrice = await service.getMidPrice();
-    expect(midPrice).toBe(150);
-    expect(cacheManager.set).toHaveBeenCalledWith('krakenserviceMidPrice', 150);
-  });
-
-  it('should return null if no data and not in cache', async () => {
-    cacheManager.get.mockResolvedValue(null);
-    service['data'] = null; // Ensure no data is set
-
+    const logSpy = jest.spyOn(service['logger'], 'error');
     const midPrice = await service.getMidPrice();
     expect(midPrice).toBeNull();
+    expect(logSpy).toHaveBeenCalledWith(
+      'KrakenService - No mid price available in cache',
+    );
   });
 });

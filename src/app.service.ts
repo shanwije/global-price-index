@@ -25,21 +25,21 @@ export class AppService {
 
     try {
       const binanceMidPrice = await this.binanceService.getMidPrice();
-      prices.push(binanceMidPrice);
+      if (binanceMidPrice !== null) prices.push(binanceMidPrice);
     } catch (error) {
       this.logger.error('Binance service failed', error.message);
     }
 
     try {
       const krakenMidPrice = await this.krakenService.getMidPrice();
-      prices.push(krakenMidPrice);
+      if (krakenMidPrice !== null) prices.push(krakenMidPrice);
     } catch (error) {
       this.logger.error('Kraken service failed', error.message);
     }
 
     try {
       const huobiMidPrice = await this.huobiService.getMidPrice();
-      prices.push(huobiMidPrice);
+      if (huobiMidPrice !== null) prices.push(huobiMidPrice);
     } catch (error) {
       this.logger.error('Huobi service failed', error.message);
     }
@@ -48,8 +48,14 @@ export class AppService {
       throw new Error('All services failed');
     }
 
+    this.logger.error(`prices : ${prices}`);
+
+    const validPrices = prices.filter(
+      (price) => price !== null && price !== undefined,
+    );
+
     const averageMidPrice =
-      prices.reduce((acc, price) => acc + price, 0) / prices.length;
+      validPrices.reduce((acc, price) => acc + price, 0) / validPrices.length;
     return { price: averageMidPrice };
   }
 }
