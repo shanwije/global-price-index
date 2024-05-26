@@ -6,7 +6,6 @@ import { KrakenService } from './exchanges/kraken/kraken.service';
 import { HuobiService } from './exchanges/huobi/huobi.service';
 import { ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
-import { Logger } from '@nestjs/common';
 
 describe('AppService', () => {
   let service: AppService;
@@ -14,7 +13,6 @@ describe('AppService', () => {
   let krakenService: KrakenService;
   let huobiService: HuobiService;
   let cacheManager: any;
-  let logger: Logger;
 
   beforeEach(async () => {
     cacheManager = {
@@ -38,7 +36,6 @@ describe('AppService', () => {
     binanceService = module.get<BinanceService>(BinanceService);
     krakenService = module.get<KrakenService>(KrakenService);
     huobiService = module.get<HuobiService>(HuobiService);
-    logger = new Logger(AppService.name);
   });
 
   afterEach(() => {
