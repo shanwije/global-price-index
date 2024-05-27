@@ -14,7 +14,7 @@ As a market maker, having a global price index is essential. This project aims t
 1. Clone the repository:
 
    ```bash
-   git clone [<repository-url>](https://github.com/shanwije/global-price-index)
+   git clone git@github.com:shanwije/global-price-index.git
    cd global-price-index
 
 2. Install the dependencies:
