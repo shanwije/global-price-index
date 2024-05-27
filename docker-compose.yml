@@ -9,7 +9,7 @@ services:
       - '3000:3000'
     environment:
       - BINANCE_WS_URL=wss://stream.binance.com:9443/ws
-      - BINANCE_WS_DEPTH=depth
+      - BINANCE_WS_DEPTH=depth10
       - BINANCE_WS_CURRENCY_PAIR=btcusdt
       - KRAKEN_WS_URL=wss://ws.kraken.com
       - KRAKEN_WS_DEPTH=10
