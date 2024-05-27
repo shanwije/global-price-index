@@ -14,8 +14,8 @@ As a market maker, having a global price index is essential. This project aims t
 1. Clone the repository:
 
    ```bash
-   git clone <repository-url>
-   cd <repository-name>
+   git clone [<repository-url>](https://github.com/shanwije/global-price-index)
+   cd global-price-index
 
 2. Install the dependencies:
 
@@ -52,7 +52,6 @@ docker-compose build
 
 Run the Docker Container:
 
-```
 ```bash
 docker-compose up
 ```
