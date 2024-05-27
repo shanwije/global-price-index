@@ -81,7 +81,6 @@ describe('KrakenService', () => {
         b: [['68050.0', '1.5']],
       },
     ];
-    const logSpy = jest.spyOn(service['logger'], 'log');
     const calculateSpy = jest.spyOn(
       AbstractExchange.prototype as any,
       'calculateAndCacheMidPrice',

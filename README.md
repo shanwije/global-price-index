@@ -3,11 +3,11 @@
 ## Overview
 
 As a market maker, having a global price index is essential. This project aims to fetch the BTC/USDT order book from three different exchanges (Binance, Kraken, and Huobi), compute a mid-price for each order book, and finally return an average of these mid-prices. The implementation uses Nest.js framework built using Node.js and TypeScript.
+
 ```angular2html
 - Node.js (>=14.x)
 - npm
 ```
-
 
 ### Installation
 
@@ -21,12 +21,13 @@ As a market maker, having a global price index is essential. This project aims t
 
    ```bash
    npm install
-   
+
 3. Configuration
 Create a .env file in the root of the project and add the following configuration variables:
+
    ```bash
    BINANCE_WS_URL=wss://stream.binance.com:9443/ws
-   BINANCE_WS_DEPTH=depth
+   BINANCE_WS_DEPTH=depth10
    BINANCE_WS_CURRENCY_PAIR=btcusdt
    
    KRAKEN_WS_URL=wss://ws.kraken.com
@@ -37,7 +38,8 @@ Create a .env file in the root of the project and add the following configuratio
    HUOBI_WS_DEPTH=step0
 
 ## Running the Application
-   ### using docker
+
+### using docker
 
 **Docker Setup**
 You can run the application using Docker. This section provides the necessary steps to build and run the application in a Docker container.
@@ -47,26 +49,32 @@ You can run the application using Docker. This section provides the necessary st
 ```bash
 docker-compose build
 ```
+
 Run the Docker Container:
+
 ```
 ```bash
 docker-compose up
 ```
 
 **or can be run using npm**:
+
    ```bash
    npm start
    ```
+
    The application will connect to the specified WebSocket endpoints, fetch the order book data, compute the mid-prices, and expose a REST API to get the global price index.
 
-
 5. Running Tests
-   
+
    To run the tests, execute:
+
    ```bash
    npm test
    ```
+
 #### Current Unit test coverage
+
 ```angular2html
 ----------------------------|---------|----------|---------|---------|--------------------------------------------------
 File                        | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                
@@ -132,6 +140,7 @@ src/
 ## API Endpoints
 
 ### Swagger
+
 ```
 http://localhost:3000/api
 ```

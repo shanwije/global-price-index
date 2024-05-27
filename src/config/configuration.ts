@@ -6,7 +6,7 @@ export default () => ({
   port: parseInt(process.env.PORT, 10) || 3000,
   logLevel: process.env.LOG_LEVEL || 'debug',
   cache: {
-    ttl: parseInt(process.env.CACHE_TTL, 10) || 1,
+    ttl: parseInt(process.env.CACHE_TTL, 10) || 3,
     max: parseInt(process.env.CACHE_MAX, 10) || 100,
   },
   binance: {

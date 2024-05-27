@@ -48,7 +48,7 @@ export class AppService {
       throw new Error('All services failed');
     }
 
-    this.logger.error(`prices : ${prices}`);
+    this.logger.debug(`All prices: ${prices}`);
 
     const validPrices = prices.filter(
       (price) => price !== null && price !== undefined,
