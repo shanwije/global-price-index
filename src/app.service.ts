@@ -14,32 +14,26 @@ export class AppService {
     private readonly huobiService: HuobiService,
   ) {}
 
-  onModuleInit() {
-    this.binanceService.connect();
-    this.krakenService.connect();
-    this.huobiService.connect();
-  }
-
   async getGlobalPriceIndex(): Promise<AverageMidPriceDto> {
     const prices: number[] = [];
 
     try {
       const binanceMidPrice = await this.binanceService.getMidPrice();
-      if (binanceMidPrice !== null) prices.push(binanceMidPrice);
+      prices.push(binanceMidPrice);
     } catch (error) {
       this.logger.error('Binance service failed', error.message);
     }
 
     try {
       const krakenMidPrice = await this.krakenService.getMidPrice();
-      if (krakenMidPrice !== null) prices.push(krakenMidPrice);
+      prices.push(krakenMidPrice);
     } catch (error) {
       this.logger.error('Kraken service failed', error.message);
     }
 
     try {
       const huobiMidPrice = await this.huobiService.getMidPrice();
-      if (huobiMidPrice !== null) prices.push(huobiMidPrice);
+      prices.push(huobiMidPrice);
     } catch (error) {
       this.logger.error('Huobi service failed', error.message);
     }
@@ -50,12 +44,8 @@ export class AppService {
 
     this.logger.debug(`All prices: ${prices}`);
 
-    const validPrices = prices.filter(
-      (price) => price !== null && price !== undefined,
-    );
-
     const averageMidPrice =
-      validPrices.reduce((acc, price) => acc + price, 0) / validPrices.length;
+      prices.reduce((acc, price) => acc + price, 0) / prices.length;
     return { price: averageMidPrice };
   }
 }

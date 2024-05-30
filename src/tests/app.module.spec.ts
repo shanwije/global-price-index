@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from '../app.module';
-import { CacheModule } from '@nestjs/cache-manager';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppService } from '../app.service';
 import { AppController } from '../app.controller';
 import { BinanceService } from '../exchanges/services/binance.service';
 import { KrakenService } from '../exchanges/services/kraken.service';
 import { HuobiService } from '../exchanges/services/huobi.service';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 describe('AppModule', () => {
   let module: TestingModule;
@@ -15,9 +15,15 @@ describe('AppModule', () => {
     module = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot(),
-        CacheModule.register({
-          ttl: 5,
-          max: 10,
+        ThrottlerModule.forRootAsync({
+          imports: [ConfigModule],
+          inject: [ConfigService],
+          useFactory: (config: ConfigService) => [
+            {
+              ttl: config.get<number>('THROTTLER_TTL'),
+              limit: config.get<number>('THROTTLER_LIMIT'),
+            },
+          ],
         }),
         AppModule,
       ],

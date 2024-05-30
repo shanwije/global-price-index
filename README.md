@@ -14,8 +14,8 @@ As a market maker, having a global price index is essential. This project aims t
 1. Clone the repository:
 
    ```bash
-   git clone <repository-url>
-   cd <repository-name>
+   git clone git@github.com:shanwije/global-price-index.git
+   cd global-price-index
 
 2. Install the dependencies:
 
@@ -52,7 +52,6 @@ docker-compose build
 
 Run the Docker Container:
 
-```
 ```bash
 docker-compose up
 ```
@@ -159,14 +158,37 @@ Response:
 
 ## Implementation Details
 
+**Dependency Injection**
+The application leverages NestJS's built-in dependency injection to manage service dependencies, ensuring low coupling and high cohesion. This makes the application more maintainable and testable.
+
 **WebSocket Connections**
-Each exchange service connects to its respective WebSocket endpoint to receive real-time order book updates. The services handle WebSocket messages, update the order book data, and compute the mid-prices.
+Each exchange service connects to its respective WebSocket endpoint to receive real-time order book updates. The services handle WebSocket messages, update the order book data, and compute the mid-prices. This ensures the application remains responsive and up-to-date with the latest market data.
 
 **Mid-Price Calculation**
-The mid-price is calculated as the average of the best bid and best ask prices from the order book.
+The mid-price is calculated as the average of the best bid and best ask prices from the order book. This is crucial for providing an accurate representation of the market price for each trading pair across different exchanges.
 
 **Caching**
-Mid-prices are cached to improve performance and reduce redundant computations.
+Mid-prices are cached to improve performance and reduce redundant computations. This approach minimizes the load on the WebSocket connections and ensures quicker response times for mid-price queries.
 
 **Error Handling**
-Comprehensive error handling is implemented to manage WebSocket disconnections, malformed messages, and other potential issues.
+Comprehensive error handling is implemented to manage WebSocket disconnections, malformed messages, and other potential issues. This includes retry mechanisms and logging to ensure the system can recover gracefully from errors.
+
+**Rate Limiting and Debouncing**
+To handle high-frequency data from WebSockets efficiently, rate limiting and debouncing mechanisms ( for 100ms ) are implemented. This prevents the application from being overwhelmed by a flood of messages and ensures only relevant updates are processed.
+
+**Ping/Pong Mechanism**
+A ping/pong mechanism is implemented to keep WebSocket connections alive. This is essential for maintaining persistent connections and ensuring the application receives continuous updates.
+
+**Extensible Design**
+The application is designed with extensibility in mind. New exchanges can be added easily by extending the `AbstractExchange` class and implementing the required methods. This modular approach ensures the system can scale as needed.
+
+**Detailed Logging**
+Detailed logging is implemented throughout the application. This includes logging WebSocket connections, message handling, error occurrences, and mid-price calculations. These logs provide valuable insights for debugging and monitoring the system's health.
+
+**Automated Tests**
+Automated tests are included to verify the functionality of key components, ensuring the application behaves as expected under various conditions. This includes unit tests for mid-price calculations and integration tests for WebSocket message handling.
+
+**Abstract Classes and Interfaces**
+The application utilizes abstract classes and interfaces to define a clear contract for exchange services. This design pattern promotes code reusability and ensures that each exchange service adheres to a consistent structure.
+
+By implementing these features, the application provides a robust, scalable, and efficient solution for managing real-time market data from multiple exchanges.

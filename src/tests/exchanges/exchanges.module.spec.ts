@@ -5,6 +5,7 @@ import { KrakenService } from '../../exchanges/services/kraken.service';
 import { HuobiService } from '../../exchanges/services/huobi.service';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 describe('ExchangesModule', () => {
   let module: TestingModule;
@@ -17,6 +18,12 @@ describe('ExchangesModule', () => {
           ttl: 5,
           max: 10,
         }),
+        ThrottlerModule.forRoot([
+          {
+            ttl: 60,
+            limit: 10,
+          },
+        ]),
         ExchangesModule,
       ],
     }).compile();
