@@ -1,8 +1,7 @@
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe, LogLevel } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { LogLevel } from '@nestjs/common/services/logger.service';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AllExceptionsFilter } from './config/exceptions/AllExceptions.filter';
 
@@ -17,8 +16,7 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter(app.get(HttpAdapterHost)));
 
   const port = configService.get<number>('port');
-
-  const logLevel = configService.get<string>('logLevel') as LogLevel;
+  const logLevel = configService.get<LogLevel>('logLevel');
 
   Logger.overrideLogger([logLevel]);
 
