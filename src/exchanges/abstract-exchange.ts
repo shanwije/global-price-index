@@ -3,7 +3,7 @@ import { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 import * as WebSocket from 'ws';
-import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { Exchange } from './exchange.interface';
 
 @Injectable()
@@ -72,7 +72,6 @@ export abstract class AbstractExchange implements Exchange {
     });
   }
 
-  @Throttle(1, 0.1)
   async handleAPIResponse(data: WebSocket.Data) {
     try {
       const parsedData = this.parseData(data);
