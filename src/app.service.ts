@@ -3,7 +3,6 @@ import { BinanceService } from './exchanges/services/binance.service';
 import { KrakenService } from './exchanges/services/kraken.service';
 import { HuobiService } from './exchanges/services/huobi.service';
 import { AverageMidPriceDto } from './dto/global-price-index.dto';
-import { number } from 'joi';
 
 @Injectable()
 export class AppService {
@@ -16,20 +15,27 @@ export class AppService {
   ) {}
 
   async getGlobalPriceIndex(): Promise<AverageMidPriceDto> {
-    const prices: (number | null)[] = [];
+    const prices: number[] = [];
 
     try {
       const binanceMidPrice = await this.binanceService.getMidPrice();
-      const krakenMidPrice = await this.krakenService.getMidPrice();
-      const huobiMidPrice = await this.huobiService.getMidPrice();
-      this.logger.debug(
-        `binance mid price : ${binanceMidPrice}, kraken mid price : ${krakenMidPrice}, huobiMidPrice = ${huobiMidPrice}`,
-      );
       prices.push(binanceMidPrice);
-      prices.push(krakenMidPrice);
-      prices.push(huobiMidPrice);
     } catch (error) {
       this.logger.error('Binance service failed', error.message);
+    }
+
+    try {
+      const krakenMidPrice = await this.krakenService.getMidPrice();
+      prices.push(krakenMidPrice);
+    } catch (error) {
+      this.logger.error('Kraken service failed', error.message);
+    }
+
+    try {
+      const huobiMidPrice = await this.huobiService.getMidPrice();
+      prices.push(huobiMidPrice);
+    } catch (error) {
+      this.logger.error('Huobi service failed', error.message);
     }
 
     if (prices.length === 0) {
@@ -38,12 +44,8 @@ export class AppService {
 
     this.logger.debug(`All prices: ${prices}`);
 
-    const validPrices = prices.filter(
-      (price) => price !== null && price !== undefined,
-    );
-
     const averageMidPrice =
-      validPrices.reduce((acc, price) => acc + price, 0) / validPrices.length;
+      prices.reduce((acc, price) => acc + price, 0) / prices.length;
     return { price: averageMidPrice };
   }
 }

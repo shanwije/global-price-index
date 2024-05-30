@@ -1,102 +1,58 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
-import { KrakenService } from '../../exchanges/services/kraken.service';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Cache } from 'cache-manager';
 import { AbstractExchange } from '../../exchanges/abstract-exchange';
 
-describe('KrakenService', () => {
-  let service: KrakenService;
-  let cacheManager: any;
+// todo add more tests
+class TestExchange extends AbstractExchange {
+  connect(): void {}
+
+  parseData(data: any): any {
+    return JSON.parse(data.toString());
+  }
+
+  calculateMidPrice(data: any): number {
+    return data.price;
+  }
+}
+
+describe('AbstractExchange', () => {
+  let exchange: TestExchange;
+  let cacheManager: Cache;
 
   beforeEach(async () => {
-    cacheManager = {
-      get: jest.fn(),
-      set: jest.fn(),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot(), CacheModule.register()],
+      imports: [CacheModule.register(), ConfigModule.forRoot()],
       providers: [
-        KrakenService,
         ConfigService,
-        { provide: CACHE_MANAGER, useValue: cacheManager },
+        {
+          provide: CACHE_MANAGER,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+          },
+        },
+        {
+          provide: AbstractExchange,
+          useClass: TestExchange,
+        },
       ],
     }).compile();
 
-    service = module.get<KrakenService>(KrakenService);
+    exchange = module.get<AbstractExchange>(AbstractExchange) as TestExchange;
+    cacheManager = module.get<Cache>(CACHE_MANAGER);
   });
 
   it('should be defined', () => {
-    expect(service).toBeDefined();
+    expect(exchange).toBeDefined();
   });
 
-  it('should connect to WebSocket', () => {
-    const connectSpy = jest.spyOn(service, 'connect');
-    service.connect();
-    expect(connectSpy).toHaveBeenCalled();
-  });
+  it('should return null if cache is not updated within 1 second', async () => {
+    jest.spyOn(cacheManager, 'get').mockResolvedValue(undefined);
 
-  it('should handle subscription status messages', () => {
-    const subscriptionMessage = {
-      event: 'subscriptionStatus',
-      status: 'subscribed',
-    };
-    const logSpy = jest.spyOn(service['logger'], 'log');
-
-    service.handleMessage(subscriptionMessage);
-    expect(logSpy).toHaveBeenCalledWith(
-      'Successfully subscribed to Kraken WebSocket',
-    );
-  });
-
-  it('should handle initial snapshot and cache mid price', async () => {
-    const initialSnapshot = [
-      0,
-      {
-        as: [['69000.0', '1.0']],
-        bs: [['68000.0', '1.0']],
-      },
-    ];
-    const logSpy = jest.spyOn(service['logger'], 'log');
-    const calculateSpy = jest.spyOn(
-      AbstractExchange.prototype as any,
-      'calculateAndCacheMidPrice',
-    );
-
-    service.handleMessage(initialSnapshot);
-    expect(calculateSpy).toHaveBeenCalledWith({
-      asks: [['69000.0', '1.0']],
-      bids: [['68000.0', '1.0']],
-    });
-    expect(logSpy).toHaveBeenCalledWith(
-      'Received initial order book snapshot from Kraken',
-    );
-  });
-
-  it('should handle incremental updates and cache mid price', async () => {
-    const orderBookUpdate = [
-      0,
-      {
-        a: [['69050.0', '1.5']],
-        b: [['68050.0', '1.5']],
-      },
-    ];
-    const calculateSpy = jest.spyOn(
-      AbstractExchange.prototype as any,
-      'calculateAndCacheMidPrice',
-    );
-
-    service.handleMessage(orderBookUpdate);
-    expect(calculateSpy).toHaveBeenCalledWith({
-      asks: [['69050.0', '1.5']],
-      bids: [['68050.0', '1.5']],
-    });
-  });
-
-  it('should get mid price from cache', async () => {
-    cacheManager.get.mockResolvedValue(68500);
-    const midPrice = await service.getMidPrice();
-    expect(midPrice).toBe(68500);
-    expect(cacheManager.get).toHaveBeenCalledWith('krakenserviceMidPrice');
+    const result = await exchange.getMidPrice();
+    expect(result).toBeNull();
   });
 });
