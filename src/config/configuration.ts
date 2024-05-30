@@ -8,8 +8,13 @@ const configValidationSchema = Joi.object({
   LOG_LEVEL: Joi.string()
     .valid('log', 'error', 'warn', 'debug', 'verbose')
     .default('log'),
-  CACHE_TTL: Joi.number().default(3),
-  CACHE_MAX: Joi.number().default(100),
+  CACHE_TTL: Joi.number().default(5),
+  CACHE_MAX: Joi.number().default(10),
+  THROTTLER_TTL: Joi.number().default(60),
+  THROTTLER_LIMIT: Joi.number().default(10),
+  CHECK_CACHE_INTERVAL: Joi.number().default(100),
+  CACHE_TIMEOUT: Joi.number().default(1000),
+  RECONNECT_DELAY: Joi.number().default(2000),
   BINANCE_WS_URL: Joi.string().uri().required(),
   BINANCE_WS_DEPTH: Joi.string().required(),
   BINANCE_WS_CURRENCY_PAIR: Joi.string().required(),
@@ -36,6 +41,15 @@ export default () => ({
   cache: {
     ttl: envVars.CACHE_TTL,
     max: envVars.CACHE_MAX,
+  },
+  throttler: {
+    ttl: envVars.THROTTLER_TTL,
+    limit: envVars.THROTTLER_LIMIT,
+  },
+  intervalSettings: {
+    checkCacheInterval: envVars.CHECK_CACHE_INTERVAL,
+    cacheTimeout: envVars.CACHE_TIMEOUT,
+    reconnectDelay: envVars.RECONNECT_DELAY,
   },
   binance: {
     wsUrl: envVars.BINANCE_WS_URL,

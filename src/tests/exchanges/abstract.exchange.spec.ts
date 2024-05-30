@@ -4,8 +4,17 @@ import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Cache } from 'cache-manager';
 import { AbstractExchange } from '../../exchanges/abstract-exchange';
+import * as WebSocket from 'ws';
 
-// todo add more tests
+// mocks
+process.env.THROTTLER_TTL = '60';
+process.env.THROTTLER_LIMIT = '10';
+process.env.CACHE_TTL = '5';
+process.env.CACHE_MAX = '10';
+process.env.CHECK_CACHE_INTERVAL = '100';
+process.env.CACHE_TIMEOUT = '1000';
+process.env.RECONNECT_DELAY = '2000';
+
 class TestExchange extends AbstractExchange {
   connect(): void {}
 
@@ -21,6 +30,7 @@ class TestExchange extends AbstractExchange {
 describe('AbstractExchange', () => {
   let exchange: TestExchange;
   let cacheManager: Cache;
+  let configService: ConfigService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -32,6 +42,9 @@ describe('AbstractExchange', () => {
           useValue: {
             get: jest.fn(),
             set: jest.fn(),
+            store: {
+              keys: jest.fn().mockResolvedValue([]),
+            },
           },
         },
         {
@@ -43,6 +56,7 @@ describe('AbstractExchange', () => {
 
     exchange = module.get<AbstractExchange>(AbstractExchange) as TestExchange;
     cacheManager = module.get<Cache>(CACHE_MANAGER);
+    configService = module.get<ConfigService>(ConfigService);
   });
 
   it('should be defined', () => {
@@ -54,5 +68,19 @@ describe('AbstractExchange', () => {
 
     const result = await exchange.getMidPrice();
     expect(result).toBeNull();
+  });
+
+  it('should handle API response correctly', async () => {
+    const orderBook = {
+      bids: [['100', '1']],
+      asks: [['200', '1']],
+      price: 150,
+    };
+    const calculateMidPriceSpy = jest.spyOn(exchange, 'calculateMidPrice');
+    const cacheSetSpy = jest.spyOn(cacheManager, 'set');
+
+    await exchange.handleAPIResponse(JSON.stringify(orderBook));
+
+    expect(calculateMidPriceSpy).toHaveBeenCalledWith(orderBook);
   });
 });

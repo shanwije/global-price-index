@@ -50,25 +50,30 @@ export abstract class AbstractExchange implements Exchange {
       return cachedValue;
     }
 
+    const checkCacheInterval = this.configService.get<number>(
+      'CHECK_CACHE_INTERVAL',
+    );
+    const cacheTimeout = this.configService.get<number>('CACHE_TIMEOUT');
+
     return new Promise((resolve) => {
-      const checkCacheInterval = setInterval(async () => {
+      const interval = setInterval(async () => {
         const newCachedValue = await this.cacheManager.get<number>(cacheKey);
         if (newCachedValue) {
           this.logger.debug(
             `${this.constructor.name} - Returning newly cached mid price: ${newCachedValue}`,
           );
-          clearInterval(checkCacheInterval);
+          clearInterval(interval);
           resolve(newCachedValue);
         }
-      }, 100);
+      }, checkCacheInterval);
 
       setTimeout(() => {
-        clearInterval(checkCacheInterval);
+        clearInterval(interval);
         this.logger.debug(
-          `${this.constructor.name} - Returning null after waiting for 1 second`,
+          `${this.constructor.name} - Returning null after waiting for ${cacheTimeout} ms`,
         );
         resolve(null);
-      }, 1000); // wait for 1 second
+      }, cacheTimeout);
     });
   }
 
@@ -129,7 +134,8 @@ export abstract class AbstractExchange implements Exchange {
       this.logger.warn(
         `${this.constructor.name} - Disconnected, reconnecting... Code: ${code}, Reason: ${reason}`,
       );
-      setTimeout(() => this.connect(), 2000);
+      const reconnectDelay = this.configService.get<number>('RECONNECT_DELAY');
+      setTimeout(() => this.connect(), reconnectDelay);
     });
 
     this.ws.on('error', (error) => {
