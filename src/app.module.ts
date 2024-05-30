@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ExchangesModule } from './exchanges/exchanges.module';
 import { AppService } from './app.service';
 import { AppController } from './app.controller';
@@ -20,6 +21,12 @@ import configuration from './config/configuration';
       }),
       inject: [ConfigService],
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 1000,
+        limit: 10,
+      },
+    ]),
     ExchangesModule,
   ],
   controllers: [AppController],

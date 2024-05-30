@@ -1,11 +1,13 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, UseGuards } from '@nestjs/common';
 import { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 import * as WebSocket from 'ws';
+import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { Exchange } from './exchange.interface';
 
 @Injectable()
+@UseGuards(ThrottlerGuard)
 export abstract class AbstractExchange implements Exchange {
   protected ws: WebSocket;
   protected wsUrl: string;
@@ -70,6 +72,7 @@ export abstract class AbstractExchange implements Exchange {
     });
   }
 
+  @Throttle(1, 0.1)
   async handleAPIResponse(data: WebSocket.Data) {
     try {
       const parsedData = this.parseData(data);

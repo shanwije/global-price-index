@@ -2,8 +2,10 @@ import { Controller, Get, Logger } from '@nestjs/common';
 import { AppService } from './app.service';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AverageMidPriceDto } from './dto/global-price-index.dto';
+import { SkipThrottle } from '@nestjs/throttler';
 
 @ApiTags('Global Price Index')
+@SkipThrottle()
 @Controller()
 export class AppController {
   private readonly logger = new Logger(AppController.name);
