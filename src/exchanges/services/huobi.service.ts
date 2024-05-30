@@ -3,6 +3,7 @@ import { AbstractExchange } from '../abstract-exchange';
 import { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
+import WebSocket from 'ws';
 
 @Injectable()
 export class HuobiService extends AbstractExchange {
@@ -13,10 +14,14 @@ export class HuobiService extends AbstractExchange {
     protected readonly configService: ConfigService,
   ) {
     super(cacheManager, configService);
-    this.wsUrl = this.configService.get<string>('HUOBI_WS_URL');
+    const wsBaseUrl = this.configService.get<string>('HUOBI_WS_URL');
+    const wsCurrencyPair = this.configService.get<string>(
+      'HUOBI_WS_CURRENCY_PAIR',
+    );
+    this.wsUrl = `${wsBaseUrl}`;
     this.wsSubscriptionMessage = {
-      sub: `market.${this.configService.get<string>('HUOBI_WS_CURRENCY_PAIR')}.depth.${this.configService.get<string>('HUOBI_WS_DEPTH')}`,
-      id: 'id1',
+      sub: `market.${wsCurrencyPair}.depth.step0`,
+      id: `${HuobiService.name}_depth_step0`,
     };
   }
 
@@ -25,18 +30,31 @@ export class HuobiService extends AbstractExchange {
     this.setupWebSocket(this.wsUrl);
   }
 
-  handleMessage(data: any): void {
-    if (data.ping) {
-      this.ws.send(JSON.stringify({ pong: data.ping }));
-      return;
+  parseData(data: WebSocket.Data) {
+    try {
+      const parsed = JSON.parse(data.toString());
+      if (parsed.ping) {
+        this.ws.send(JSON.stringify({ pong: parsed.ping }));
+        return null;
+      }
+      return parsed;
+    } catch (error) {
+      throw new Error(`Error parsing data: ${error.message}`);
+    }
+  }
+
+  calculateMidPrice(data: any): number {
+    if (!data.tick || !data.tick.bids || !data.tick.asks) {
+      throw new Error(`Data bids or asks are empty`);
     }
 
-    if (data.ch && data.tick) {
-      this.data = data.tick;
-      this.calculateAndCacheMidPrice(data.tick);
-    } else {
-      // For testing purposes
-      this.calculateAndCacheMidPrice(data);
+    const highestBid = parseFloat(data.tick.bids[0][0]);
+    const lowestAsk = parseFloat(data.tick.asks[0][0]);
+
+    if (isNaN(highestBid) || isNaN(lowestAsk)) {
+      throw new Error(`Invalid bid/ask price: ${highestBid}, ${lowestAsk}`);
     }
+
+    return (highestBid + lowestAsk) / 2;
   }
 }

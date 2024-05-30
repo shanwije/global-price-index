@@ -3,20 +3,15 @@ import { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 import * as WebSocket from 'ws';
-import * as zlib from 'zlib';
 import { Exchange } from './exchange.interface';
 
 @Injectable()
 export abstract class AbstractExchange implements Exchange {
   protected ws: WebSocket;
-  protected readonly logger = new Logger(AbstractExchange.name);
-  protected latestOrderBook: any = null;
-  protected data: any = null;
   protected wsUrl: string;
   protected wsSubscriptionMessage: any;
-  private lastMessageTimestamp: number = 0;
 
-  private dataPromiseResolve: ((data: any) => void) | null = null;
+  protected readonly logger = new Logger(AbstractExchange.name);
 
   constructor(
     @Inject(CACHE_MANAGER) protected cacheManager: Cache,
@@ -25,67 +20,66 @@ export abstract class AbstractExchange implements Exchange {
     this.logger.log(`${this.constructor.name} - Instantiated`);
   }
 
+  onModuleInit() {
+    this.connect();
+  }
+
+  onModuleDestroy() {
+    if (this.ws) {
+      this.ws.close();
+    }
+  }
+
   abstract connect(): void;
+  abstract parseData(data: WebSocket.Data): any;
+  abstract calculateMidPrice(data: any): number;
 
-  abstract handleMessage(data: any): void;
-
-  async calculateAndCacheMidPrice(orderBook: any): Promise<number> {
-    if (
-      !orderBook ||
-      !orderBook.bids ||
-      !orderBook.asks ||
-      orderBook.bids.length === 0 ||
-      orderBook.asks.length === 0
-    ) {
-      this.logger.warn(`${this.constructor.name} - Invalid order book data`);
-      return null;
-    }
-
-    const bestBid = parseFloat(orderBook.bids[0][0]);
-    const bestAsk = parseFloat(orderBook.asks[0][0]);
-
-    this.logger.debug(
-      `${this.constructor.name} - Best Bid: ${bestBid}, Best Ask: ${bestAsk}`,
-    );
-
-    if (isNaN(bestBid) || isNaN(bestAsk)) {
-      this.logger.warn(`${this.constructor.name} - Invalid bid/ask values`);
-      return null;
-    }
-
-    const midPrice = (bestBid + bestAsk) / 2;
-
-    this.logger.debug(
-      `${this.constructor.name} - Calculated mid price: ${midPrice}`,
-    );
-
+  async getMidPrice(): Promise<number | null> {
     const cacheKey = `${this.constructor.name.toLowerCase()}MidPrice`;
-    await this.cacheManager.set(cacheKey, midPrice);
-    this.logger.log(`${this.constructor.name} - Cached mid price: ${midPrice}`);
-    return midPrice;
-  }
+    const cachedValue = await this.cacheManager.get<number>(cacheKey);
 
-  async getMidPrice(): Promise<number> {
-    const cacheKey = `${this.constructor.name.toLowerCase()}MidPrice`;
-    const midPrice = await this.cacheManager.get<number>(cacheKey);
-    this.logger.log(
-      `${this.constructor.name} - Retrieved mid price from cache: ${midPrice}`,
-    );
-
-    if (midPrice !== undefined && midPrice !== null) {
-      return midPrice;
-    } else {
-      this.logger.log(
-        `${this.constructor.name} - Waiting for data to calculate mid price`,
+    if (cachedValue !== undefined) {
+      this.logger.debug(
+        `${this.constructor.name} - Returning cached mid price: ${cachedValue}`,
       );
-      const data = await this.waitForData();
-      return this.calculateAndCacheMidPrice(data);
+      return cachedValue;
     }
+
+    return new Promise((resolve) => {
+      const checkCacheInterval = setInterval(async () => {
+        const newCachedValue = await this.cacheManager.get<number>(cacheKey);
+        if (newCachedValue !== undefined) {
+          this.logger.debug(
+            `${this.constructor.name} - Returning newly cached mid price: ${newCachedValue}`,
+          );
+          clearInterval(checkCacheInterval);
+          resolve(newCachedValue);
+        }
+      }, 100);
+
+      setTimeout(() => {
+        clearInterval(checkCacheInterval);
+        this.logger.debug(
+          `${this.constructor.name} - Returning null after waiting for 1 second`,
+        );
+        resolve(null);
+      }, 1000); // wait for 1 second
+    });
   }
 
-  getOrderBook(): any {
-    this.logger.log(`${this.constructor.name} - Retrieving latest order book`);
-    return this.latestOrderBook;
+  async handleAPIResponse(data: WebSocket.Data) {
+    try {
+      const parsedData = this.parseData(data);
+      const midPrice = this.calculateMidPrice(parsedData);
+      this.logger.debug(`${this.constructor.name} - Mid Price: ${midPrice}`);
+
+      const cacheKey = `${this.constructor.name.toLowerCase()}MidPrice`;
+      await this.cacheManager.set(cacheKey, midPrice);
+    } catch (error) {
+      this.logger.error(
+        `${this.constructor.name} - Error parsing data: ${error.message}`,
+      );
+    }
   }
 
   protected setupWebSocket(url: string): void {
@@ -105,25 +99,8 @@ export abstract class AbstractExchange implements Exchange {
     });
 
     this.ws.on('message', (data) => {
-      const now = Date.now();
-      if (now - this.lastMessageTimestamp > 100) {
-        this.lastMessageTimestamp = now;
-        try {
-          if (this.constructor.name === 'HuobiService') {
-            this.handleGzipMessage(data);
-          } else {
-            this.handlePlainMessage(data);
-          }
-        } catch (error) {
-          this.logger.error(
-            `${this.constructor.name} - Error parsing message: ${error.message}`,
-          );
-        }
-      } else {
-        this.logger.debug(
-          `${this.constructor.name} - Skipping message to avoid flooding`,
-        );
-      }
+      this.logger.debug(`${this.constructor.name} - Data received`);
+      this.handleAPIResponse(data);
     });
 
     this.ws.on('close', (code, reason) => {
@@ -137,55 +114,7 @@ export abstract class AbstractExchange implements Exchange {
       this.logger.error(
         `${this.constructor.name} - WebSocket error: ${error.message}`,
       );
-    });
-  }
-
-  protected handlePlainMessage(data: any): void {
-    this.logger.debug(`${this.constructor.name} - Handling plain message`);
-    const parsedData = JSON.parse(data.toString());
-    this.logger.debug(
-      `${this.constructor.name} - Message data received: ${JSON.stringify(parsedData)}...`,
-    );
-    this.latestOrderBook = parsedData;
-    this.data = parsedData; // Set this.data to the latest order book data
-
-    if (this.dataPromiseResolve) {
-      this.dataPromiseResolve(this.data);
-      this.dataPromiseResolve = null;
-    }
-
-    this.handleMessage(parsedData);
-  }
-
-  protected handleGzipMessage(data: any): void {
-    this.logger.debug(`${this.constructor.name} - Handling gzip message`);
-    zlib.gunzip(data, (err, decompressed) => {
-      if (err) {
-        this.logger.error(
-          `${this.constructor.name} - Decompression error: ${err.message}`,
-        );
-        return;
-      }
-
-      const parsedData = JSON.parse(decompressed.toString());
-      this.logger.debug(
-        `${this.constructor.name} - Message data received: ${JSON.stringify(parsedData)}...`,
-      );
-      this.latestOrderBook = parsedData;
-      this.data = parsedData; // Set this.data to the latest order book data
-
-      if (this.dataPromiseResolve) {
-        this.dataPromiseResolve(this.data);
-        this.dataPromiseResolve = null;
-      }
-
-      this.handleMessage(parsedData);
-    });
-  }
-
-  private waitForData(): Promise<any> {
-    return new Promise((resolve) => {
-      this.dataPromiseResolve = resolve;
+      this.ws.close();
     });
   }
 }

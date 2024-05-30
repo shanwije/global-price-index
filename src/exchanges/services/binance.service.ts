@@ -3,6 +3,7 @@ import { AbstractExchange } from '../abstract-exchange';
 import { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
+import WebSocket from 'ws';
 
 @Injectable()
 export class BinanceService extends AbstractExchange {
@@ -26,8 +27,27 @@ export class BinanceService extends AbstractExchange {
     this.setupWebSocket(this.wsUrl);
   }
 
-  handleMessage(data: any): void {
-    this.data = data;
-    this.calculateAndCacheMidPrice(data);
+  parseData(data: WebSocket.Data) {
+    try {
+      return JSON.parse(data.toString());
+    } catch (error) {
+      this.logger.error(`Error parsing data: ${error.message}`);
+      throw new Error(`Error parsing data: ${error.message}`);
+    }
+  }
+
+  calculateMidPrice(data: any): number {
+    if (!data.bids || !data.asks) {
+      throw new Error(`Data bids or asks are empty`);
+    }
+
+    const highestBid = parseFloat(data.bids[0][0]);
+    const lowestAsk = parseFloat(data.asks[0][0]);
+
+    if (isNaN(highestBid) || isNaN(lowestAsk)) {
+      throw new Error(`Invalid bid/ask price: ${highestBid}, ${lowestAsk}`);
+    }
+
+    return (highestBid + lowestAsk) / 2;
   }
 }

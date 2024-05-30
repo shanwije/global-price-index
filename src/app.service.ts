@@ -14,12 +14,6 @@ export class AppService {
     private readonly huobiService: HuobiService,
   ) {}
 
-  onModuleInit() {
-    this.binanceService.connect();
-    this.krakenService.connect();
-    this.huobiService.connect();
-  }
-
   async getGlobalPriceIndex(): Promise<AverageMidPriceDto> {
     const prices: number[] = [];
 
