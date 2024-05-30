@@ -11,19 +11,21 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })
+    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
   );
   app.useGlobalFilters(new AllExceptionsFilter(app.get(HttpAdapterHost)));
 
   const port = configService.get<number>('port');
-  const logLevel = configService.get<LogLevel>('logLevel');
+  // const logLevel = configService.get<LogLevel>('logLevel');
 
-  Logger.overrideLogger([logLevel]);
+  const logLevels: LogLevel[] = ['warn', 'error'];
+  Logger.overrideLogger(logLevels);
+  app.useLogger(logLevels);
 
   const config = new DocumentBuilder()
     .setTitle('Global Price Index API')
     .setDescription(
-      'API to provide the global price index for the BTC/USDT trading pair from Binance, Kraken, and Huobi exchanges.'
+      'API to provide the global price index for the BTC/USDT trading pair from Binance, Kraken, and Huobi exchanges.',
     )
     .setVersion('1.0')
     .build();

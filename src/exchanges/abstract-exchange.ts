@@ -36,9 +36,12 @@ export abstract class AbstractExchange implements Exchange {
 
   async getMidPrice(): Promise<number | null> {
     const cacheKey = `${this.constructor.name.toLowerCase()}MidPrice`;
-    const cachedValue = await this.cacheManager.get<number>(cacheKey);
+    this.logger.debug(
+      `${this.constructor.name} - Checking cache for key: ${cacheKey}`,
+    );
 
-    if (cachedValue !== undefined) {
+    const cachedValue = await this.cacheManager.get<number>(cacheKey);
+    if (cachedValue) {
       this.logger.debug(
         `${this.constructor.name} - Returning cached mid price: ${cachedValue}`,
       );
@@ -48,7 +51,7 @@ export abstract class AbstractExchange implements Exchange {
     return new Promise((resolve) => {
       const checkCacheInterval = setInterval(async () => {
         const newCachedValue = await this.cacheManager.get<number>(cacheKey);
-        if (newCachedValue !== undefined) {
+        if (newCachedValue) {
           this.logger.debug(
             `${this.constructor.name} - Returning newly cached mid price: ${newCachedValue}`,
           );
@@ -74,10 +77,27 @@ export abstract class AbstractExchange implements Exchange {
       this.logger.debug(`${this.constructor.name} - Mid Price: ${midPrice}`);
 
       const cacheKey = `${this.constructor.name.toLowerCase()}MidPrice`;
-      await this.cacheManager.set(cacheKey, midPrice);
+      this.logger.debug(
+        `${this.constructor.name} - Setting cache for key: ${cacheKey} with value: ${midPrice}`,
+      );
+      await this.cacheManager.set(cacheKey, midPrice); // Add TTL if needed
+      this.printCacheContents();
     } catch (error) {
       this.logger.error(
-        `${this.constructor.name} - Error parsing data: ${error.message}`,
+        `${this.constructor.name} - Error parsing data: ${error}`,
+      );
+    }
+  }
+
+  // just for testing
+  async printCacheContents(): Promise<void> {
+    const keys = await this.cacheManager.store.keys();
+    this.logger.debug(`${this.constructor.name} - Cache keys: ${keys}`);
+
+    for (const key of keys) {
+      const value = await this.cacheManager.get(key);
+      this.logger.log(
+        `${this.constructor.name} - Cache entry: ${key} = ${value}`,
       );
     }
   }

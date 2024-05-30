@@ -20,6 +20,7 @@ export class BinanceService extends AbstractExchange {
       'BINANCE_WS_CURRENCY_PAIR',
     );
     this.wsUrl = `${wsBaseUrl}/${wsCurrencyPair}@${wsDepth}`;
+    this.logger.debug(`BinanceService initialized with wsUrl: ${this.wsUrl}`);
   }
 
   connect(): void {
@@ -28,26 +29,38 @@ export class BinanceService extends AbstractExchange {
   }
 
   parseData(data: WebSocket.Data) {
+    this.logger.debug(`Received data`);
     try {
-      return JSON.parse(data.toString());
+      const parsed = JSON.parse(data.toString());
+      this.logger.debug(`Parsed data successfully`);
+      return parsed;
     } catch (error) {
-      this.logger.error(`Error parsing data: ${error.message}`);
+      this.logger.error(`Error parsing data: ${error.message}`, error.stack);
       throw new Error(`Error parsing data: ${error.message}`);
     }
   }
 
   calculateMidPrice(data: any): number {
+    this.logger.debug(`Calculating mid price for data`);
     if (!data.bids || !data.asks) {
-      throw new Error(`Data bids or asks are empty`);
+      const errorMsg = `Data bids or asks are empty`;
+      this.logger.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
     const highestBid = parseFloat(data.bids[0][0]);
     const lowestAsk = parseFloat(data.asks[0][0]);
 
+    this.logger.debug(`Highest bid: ${highestBid}, Lowest ask: ${lowestAsk}`);
+
     if (isNaN(highestBid) || isNaN(lowestAsk)) {
-      throw new Error(`Invalid bid/ask price: ${highestBid}, ${lowestAsk}`);
+      const errorMsg = `Invalid bid/ask price: ${highestBid}, ${lowestAsk}`;
+      this.logger.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
-    return (highestBid + lowestAsk) / 2;
+    const midPrice = (highestBid + lowestAsk) / 2;
+    this.logger.debug(`Calculated mid price: ${midPrice}`);
+    return midPrice;
   }
 }

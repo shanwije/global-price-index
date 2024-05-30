@@ -14,7 +14,7 @@ const configValidationSchema = Joi.object({
   BINANCE_WS_DEPTH: Joi.string().required(),
   BINANCE_WS_CURRENCY_PAIR: Joi.string().required(),
   KRAKEN_WS_URL: Joi.string().uri().required(),
-  KRAKEN_WS_DEPTH: Joi.string().required(),
+  KRAKEN_WS_DEPTH: Joi.number().required(),
   KRAKEN_WS_CURRENCY_PAIR: Joi.string().required(),
   HUOBI_WS_URL: Joi.string().uri().required(),
   HUOBI_WS_DEPTH: Joi.string().required(),

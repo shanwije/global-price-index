@@ -15,7 +15,10 @@ export class KrakenService extends AbstractExchange {
   ) {
     super(cacheManager, configService);
     const wsBaseUrl = this.configService.get<string>('KRAKEN_WS_URL');
-    const wsDepth = this.configService.get<string>('KRAKEN_WS_DEPTH');
+    const wsDepth = parseInt(
+      this.configService.get<string>('KRAKEN_WS_DEPTH'),
+      10,
+    );
     const wsCurrencyPair = this.configService.get<string>(
       'KRAKEN_WS_CURRENCY_PAIR',
     );
@@ -28,6 +31,9 @@ export class KrakenService extends AbstractExchange {
         depth: wsDepth,
       },
     };
+    this.logger.debug(
+      `KrakenService initialized with wsUrl: ${this.wsUrl} and wsSubscriptionMessage: ${JSON.stringify(this.wsSubscriptionMessage)}`,
+    );
   }
 
   connect(): void {
@@ -36,32 +42,61 @@ export class KrakenService extends AbstractExchange {
   }
 
   parseData(data: WebSocket.Data) {
+    this.logger.debug(`Received data`);
     try {
-      return JSON.parse(data.toString());
+      const parsed = JSON.parse(data.toString());
+      this.logger.debug(`Parsed data successfully`);
+      return parsed;
     } catch (error) {
+      this.logger.error(`Error parsing data: ${error.message}`, error.stack);
       throw new Error(`Error parsing data: ${error.message}`);
     }
   }
 
   calculateMidPrice(data: any): number {
-    if (!data[1] || (!data[1].b && !data[1].a)) {
-      throw new Error(`Data bids or asks are empty`);
+    this.logger.debug('Calculating mid price for data');
+
+    let bids, asks;
+
+    if (data[1].bs && data[1].as) {
+      // Format 1
+      bids = data[1].bs;
+      asks = data[1].as;
+    } else if (data[1].a && data[1].c) {
+      // Format 2
+      bids = []; // No bids in this format
+      asks = data[1].a;
+    } else {
+      const errorMsg = 'Data bids or asks are empty or in an unexpected format';
+      this.logger.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
-    const bids = data[1].b;
-    const asks = data[1].a;
-
-    if (!bids || !asks || bids.length === 0 || asks.length === 0) {
-      throw new Error(`Invalid bid/ask data`);
+    
+    if (!asks || asks.length === 0) {
+      const errorMsg = 'Invalid ask data';
+      this.logger.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
-    const highestBid = parseFloat(bids[0][0]);
     const lowestAsk = parseFloat(asks[0][0]);
+    let highestBid = null;
 
-    if (isNaN(highestBid) || isNaN(lowestAsk)) {
-      throw new Error(`Invalid bid/ask price: ${highestBid}, ${lowestAsk}`);
+    if (bids.length > 0) {
+      highestBid = parseFloat(bids[0][0]);
     }
 
-    return (highestBid + lowestAsk) / 2;
+    this.logger.debug(`Highest bid: ${highestBid}, Lowest ask: ${lowestAsk}`);
+
+    if (isNaN(lowestAsk) || (highestBid !== null && isNaN(highestBid))) {
+      const errorMsg = `Invalid bid/ask price: ${highestBid}, ${lowestAsk}`;
+      this.logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    const midPrice =
+      highestBid !== null ? (highestBid + lowestAsk) / 2 : lowestAsk;
+    this.logger.debug(`Calculated mid price: ${midPrice}`);
+    return midPrice;
   }
 }
