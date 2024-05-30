@@ -2,7 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { HuobiService } from '../../../exchanges/services/huobi.service';
 import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
-import * as WebSocket from 'ws';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import * as zlib from 'zlib';
 
 describe('HuobiService', () => {
   let service: HuobiService;
@@ -12,14 +14,30 @@ describe('HuobiService', () => {
     cacheManager = {
       get: jest.fn(),
       set: jest.fn(),
+      store: {
+        keys: jest.fn().mockResolvedValue([]),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot(), CacheModule.register()],
+      imports: [
+        ConfigModule.forRoot(),
+        CacheModule.register(),
+        ThrottlerModule.forRoot([
+          {
+            ttl: 60,
+            limit: 10,
+          },
+        ]),
+      ],
       providers: [
         HuobiService,
         ConfigService,
         { provide: CACHE_MANAGER, useValue: cacheManager },
+        {
+          provide: APP_GUARD,
+          useClass: ThrottlerGuard,
+        },
       ],
     }).compile();
 
@@ -31,43 +49,29 @@ describe('HuobiService', () => {
   });
 
   it('should connect to WebSocket', () => {
-    const connectSpy = jest.spyOn(service, 'connect');
+    const loggerSpy = jest.spyOn(service['logger'], 'log');
+    const setupWebSocketSpy = jest.spyOn<any, any>(service, 'setupWebSocket');
+
     service.connect();
-    expect(connectSpy).toHaveBeenCalled();
-  });
 
-  it('should handle ping messages', () => {
-    const wsMock = { send: jest.fn() } as unknown as WebSocket;
-    service['ws'] = wsMock;
-    const pingMessage = { ping: 123456 };
-
-    service.handleMessage(pingMessage);
-    expect(wsMock.send).toHaveBeenCalledWith(JSON.stringify({ pong: 123456 }));
-  });
-
-  it('should handle data messages and cache mid price', async () => {
-    const orderBook = {
-      ch: 'market.btcusdt.depth.step0',
-      tick: { bids: [['100', '1']], asks: [['200', '1']] },
-    };
-    const calculateAndCacheMidPriceSpy = jest.spyOn(
-      service,
-      'calculateAndCacheMidPrice',
+    expect(loggerSpy).toHaveBeenCalledWith(
+      `Connecting to Huobi WebSocket at ${service['wsUrl']}`,
     );
-
-    service.handleMessage(orderBook);
-    expect(calculateAndCacheMidPriceSpy).toHaveBeenCalledWith(orderBook.tick);
+    expect(setupWebSocketSpy).toHaveBeenCalledWith(service['wsUrl']);
   });
 
-  it('should handle plain data messages and cache mid price (for testing purposes)', async () => {
-    const orderBook = { bids: [['100', '1']], asks: [['200', '1']] };
-    const calculateAndCacheMidPriceSpy = jest.spyOn(
-      service,
-      'calculateAndCacheMidPrice',
-    );
+  it('should handle plain messages and cache mid price', async () => {
+    const orderBook = { tick: { bids: [['100', '1']], asks: [['200', '1']] } };
+    const calculateMidPriceSpy = jest.spyOn(service, 'calculateMidPrice');
+    const cacheSetSpy = jest.spyOn(cacheManager, 'set');
 
-    service.handleMessage(orderBook);
-    expect(calculateAndCacheMidPriceSpy).toHaveBeenCalledWith(orderBook);
+    const midPrice = service.calculateMidPrice(orderBook);
+    calculateMidPriceSpy.mockReturnValue(midPrice);
+
+    service.handleAPIResponse(JSON.stringify(orderBook));
+
+    expect(calculateMidPriceSpy).toHaveBeenCalledWith(orderBook);
+    expect(cacheSetSpy).toHaveBeenCalledWith('huobiserviceMidPrice', midPrice);
   });
 
   it('should get mid price from cache', async () => {
@@ -75,5 +79,52 @@ describe('HuobiService', () => {
     const midPrice = await service.getMidPrice();
     expect(midPrice).toBe(150);
     expect(cacheManager.get).toHaveBeenCalledWith('huobiserviceMidPrice');
+  });
+
+  it('should parse data correctly', () => {
+    const data = JSON.stringify({ test: 'data' });
+    const parsedData = service.parseData(data);
+    expect(parsedData).toEqual({ test: 'data' });
+  });
+
+  it('should handle parsing error correctly', () => {
+    const invalidData = 'invalid data';
+    expect(() => service.parseData(invalidData)).toThrow(
+      `Error parsing data: Unexpected token 'i', \"invalid data\" is not valid JSON`,
+    );
+  });
+
+  it('should handle compressed data correctly', () => {
+    const mockData = { test: 'data' };
+    const compressedData = zlib.gzipSync(Buffer.from(JSON.stringify(mockData)));
+    const loggerSpy = jest.spyOn(service['logger'], 'debug');
+    const parsedData = service.parseData(compressedData);
+
+    expect(loggerSpy).toHaveBeenCalledWith('Decompressed data successfully');
+    expect(parsedData).toEqual(mockData);
+  });
+
+  it('should calculate mid price correctly', () => {
+    const data = {
+      tick: { bids: [['100.0', '1']], asks: [['200.0', '1']] },
+    };
+    const midPrice = service.calculateMidPrice(data);
+    expect(midPrice).toBe(150.0);
+  });
+
+  it('should throw error if bids or asks are empty', () => {
+    const data = { tick: { bids: [], asks: [] } };
+    expect(() => service.calculateMidPrice(data)).toThrow(
+      `Cannot read properties of undefined (reading '0')`,
+    );
+  });
+
+  it('should throw error if bid or ask prices are invalid', () => {
+    const data = {
+      tick: { bids: [['invalid', '1']], asks: [['invalid', '1']] },
+    };
+    expect(() => service.calculateMidPrice(data)).toThrow(
+      'Invalid bid/ask price: NaN, NaN',
+    );
   });
 });

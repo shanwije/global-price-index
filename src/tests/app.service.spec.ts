@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AppService } from '../app.service';
+import { AppService } from '../../src/app.service';
 import { BinanceService } from '../exchanges/services/binance.service';
 import { KrakenService } from '../exchanges/services/kraken.service';
 import { HuobiService } from '../exchanges/services/huobi.service';

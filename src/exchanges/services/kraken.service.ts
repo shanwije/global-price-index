@@ -3,31 +3,37 @@ import { AbstractExchange } from '../abstract-exchange';
 import { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
+import WebSocket from 'ws';
 
 @Injectable()
 export class KrakenService extends AbstractExchange {
   readonly logger = new Logger(KrakenService.name);
-  private orderBook: { bids: any[]; asks: any[] } = { bids: [], asks: [] };
 
   constructor(
     @Inject(CACHE_MANAGER) cacheManager: Cache,
     protected readonly configService: ConfigService,
   ) {
     super(cacheManager, configService);
-    this.wsUrl = this.configService.get<string>('KRAKEN_WS_URL');
-    const depth = parseInt(
+    const wsBaseUrl = this.configService.get<string>('KRAKEN_WS_URL');
+    const wsDepth = parseInt(
       this.configService.get<string>('KRAKEN_WS_DEPTH'),
       10,
     );
+    const wsCurrencyPair = this.configService.get<string>(
+      'KRAKEN_WS_CURRENCY_PAIR',
+    );
+    this.wsUrl = `${wsBaseUrl}`;
     this.wsSubscriptionMessage = {
       event: 'subscribe',
-      pair: [this.configService.get<string>('KRAKEN_WS_CURRENCY_PAIR')],
+      pair: [wsCurrencyPair],
       subscription: {
         name: 'book',
-        depth: depth,
+        depth: wsDepth,
       },
     };
-    this.logger.log(`WebSocket URL: ${this.wsUrl}`);
+    this.logger.debug(
+      `KrakenService initialized with wsUrl: ${this.wsUrl} and wsSubscriptionMessage: ${JSON.stringify(this.wsSubscriptionMessage)}`,
+    );
   }
 
   connect(): void {
@@ -35,54 +41,62 @@ export class KrakenService extends AbstractExchange {
     this.setupWebSocket(this.wsUrl);
   }
 
-  handleMessage(data: any): void {
-    if (data.event === 'subscriptionStatus' && data.status === 'subscribed') {
-      this.logger.log('Successfully subscribed to Kraken WebSocket');
-      return;
-    }
-
-    if (Array.isArray(data)) {
-      const orderBookData = data[1];
-
-      if (orderBookData.as || orderBookData.bs) {
-        // Initial snapshot
-        this.orderBook.asks = orderBookData.as || [];
-        this.orderBook.bids = orderBookData.bs || [];
-        this.logger.log('Received initial order book snapshot from Kraken');
-        this.calculateAndCacheMidPrice(this.orderBook);
-      } else {
-        // Incremental updates
-        const asks = orderBookData.a || [];
-        const bids = orderBookData.b || [];
-        if (asks.length > 0) {
-          this.updateOrderBook(this.orderBook.asks, asks, 'asks');
-        }
-        if (bids.length > 0) {
-          this.updateOrderBook(this.orderBook.bids, bids, 'bids');
-        }
-        this.calculateAndCacheMidPrice(this.orderBook);
-      }
-    } else {
-      this.logger.warn(`Received non-array data: ${JSON.stringify(data)}`);
+  parseData(data: WebSocket.Data) {
+    this.logger.debug(`Received data`);
+    try {
+      const parsed = JSON.parse(data.toString());
+      this.logger.debug(`Parsed data successfully`);
+      return parsed;
+    } catch (error) {
+      this.logger.error(`Error parsing data: ${error.message}`, error.stack);
+      throw new Error(`Error parsing data: ${error.message}`);
     }
   }
 
-  private updateOrderBook(side: any[], updates: any[], type: string): void {
-    updates.forEach((update) => {
-      const [price, volume] = update;
-      const index = side.findIndex((level) => level[0] === price);
-      if (volume === '0.00000000') {
-        if (index !== -1) {
-          side.splice(index, 1);
-        }
-      } else {
-        if (index === -1) {
-          side.push(update);
-        } else {
-          side[index] = update;
-        }
-      }
-    });
-    this.logger.debug(`Updated ${type} in order book`);
+  calculateMidPrice(data: any): number {
+    this.logger.debug('Calculating mid price for data');
+
+    let bids, asks;
+
+    if (data[1].bs && data[1].as) {
+      // Format 1
+      bids = data[1].bs;
+      asks = data[1].as;
+    } else if (data[1].a && data[1].c) {
+      // Format 2
+      bids = []; // No bids in this format
+      asks = data[1].a;
+    } else {
+      const errorMsg = 'Data bids or asks are empty or in an unexpected format';
+      this.logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    
+    if (!asks || asks.length === 0) {
+      const errorMsg = 'Invalid ask data';
+      this.logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    const lowestAsk = parseFloat(asks[0][0]);
+    let highestBid = null;
+
+    if (bids.length > 0) {
+      highestBid = parseFloat(bids[0][0]);
+    }
+
+    this.logger.debug(`Highest bid: ${highestBid}, Lowest ask: ${lowestAsk}`);
+
+    if (isNaN(lowestAsk) || (highestBid !== null && isNaN(highestBid))) {
+      const errorMsg = `Invalid bid/ask price: ${highestBid}, ${lowestAsk}`;
+      this.logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    const midPrice =
+      highestBid !== null ? (highestBid + lowestAsk) / 2 : lowestAsk;
+    this.logger.debug(`Calculated mid price: ${midPrice}`);
+    return midPrice;
   }
 }

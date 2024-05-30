@@ -1,9 +1,8 @@
-import { Observable } from 'rxjs';
+import WebSocket from 'ws';
 
 export interface Exchange {
   connect(): void;
-
-  getOrderBook(): Observable<any>;
-
-  getMidPrice(): Promise<number>;
+  handleAPIResponse(data: WebSocket.data): void;
+  calculateMidPrice(data: any): number;
+  getMidPrice(): Promise<number | null>;
 }
