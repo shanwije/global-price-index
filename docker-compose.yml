@@ -8,14 +8,24 @@ services:
     ports:
       - '3000:3000'
     environment:
+      - PORT=3000
+      - LOG_LEVEL=warn
       - BINANCE_WS_URL=wss://stream.binance.com:9443/ws
       - BINANCE_WS_DEPTH=depth10
       - BINANCE_WS_CURRENCY_PAIR=btcusdt
       - KRAKEN_WS_URL=wss://ws.kraken.com
       - KRAKEN_WS_DEPTH=10
+      - KRAKEN_WS_CURRENCY_PAIR=XBT/USD
       - HUOBI_WS_URL=wss://api.huobi.pro/ws
-      - HUOBI_WS_CURRENCY_PAIR=btcusdt
       - HUOBI_WS_DEPTH=step0
+      - HUOBI_WS_CURRENCY_PAIR=btcusdt
+      - CACHE_TTL=3000
+      - CACHE_MAX=100
+      - THROTTLER_TTL=60
+      - THROTTLER_LIMIT=10
+      - CHECK_CACHE_INTERVAL=100
+      - CACHE_TIMEOUT=1000
+      - RECONNECT_DELAY=2000
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
